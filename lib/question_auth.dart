@@ -8,6 +8,7 @@
 // Core exports
 export 'src/core/auth_state.dart';
 export 'src/core/exceptions.dart';
+export 'src/core/token_manager.dart';
 
 // Model exports
 export 'src/models/user.dart';
