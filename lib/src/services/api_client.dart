@@ -79,7 +79,9 @@ class HttpApiClient implements ApiClient {
     } on FormatException catch (e) {
       throw NetworkException('Invalid response format: ${e.message}');
     } catch (e) {
-      if (e is AuthException) rethrow;
+      if (e is AuthException) {
+        rethrow;
+      }
       throw NetworkException('Unexpected error: ${e.toString()}');
     }
   }
@@ -102,7 +104,9 @@ class HttpApiClient implements ApiClient {
     } on FormatException catch (e) {
       throw NetworkException('Invalid response format: ${e.message}');
     } catch (e) {
-      if (e is AuthException) rethrow;
+      if (e is AuthException) {
+        rethrow;
+      }
       throw NetworkException('Unexpected error: ${e.toString()}');
     }
   }

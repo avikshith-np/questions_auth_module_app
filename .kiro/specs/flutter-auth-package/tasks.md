@@ -39,7 +39,7 @@
     - Write unit tests for token storage and retrieval
     - _Requirements: 6.1, 6.2, 6.4_
 
-- [x] 5. Implement HTTP API client
+- [ ] 5. Implement HTTP API client
   - [x] 5.1 Create ApiClient interface and HTTP implementation
     - Define ApiClient abstract class with HTTP methods
     - Implement HttpApiClient with proper error handling and timeout
@@ -47,8 +47,8 @@
     - Write unit tests with mocked HTTP responses
     - _Requirements: 2.1, 3.1, 4.1, 5.1, 7.1_
 
-- [ ] 6. Implement authentication repository
-  - [ ] 6.1 Create AuthRepository interface and implementation
+- [x] 6. Implement authentication repository
+  - [x] 6.1 Create AuthRepository interface and implementation
     - Define AuthRepository abstract class with auth operations
     - Implement AuthRepositoryImpl with API client and token manager integration
     - Handle API responses and convert to domain models
