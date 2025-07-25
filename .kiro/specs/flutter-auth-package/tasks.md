@@ -56,14 +56,14 @@
     - _Requirements: 2.1, 2.2, 3.1, 3.2, 4.1, 4.2, 5.1, 5.2_
 
 - [ ] 7. Implement authentication state management
-  - [ ] 7.1 Create AuthState and state management classes
+  - [x] 7.1 Create AuthState and state management classes
     - Define AuthState enum and class for authentication status
     - Implement AuthStateNotifier for reactive state updates
     - Write unit tests for state transitions
     - _Requirements: 6.3_
 
-- [ ] 8. Implement main authentication service
-  - [ ] 8.1 Create AuthService interface and implementation
+- [-] 8. Implement main authentication service
+  - [x] 8.1 Create AuthService interface and implementation
     - Define AuthService abstract class with public authentication methods
     - Implement AuthServiceImpl with repository and state management integration
     - Handle authentication flow and state updates
