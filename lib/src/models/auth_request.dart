@@ -1,3 +1,5 @@
+library;
+
 /// Authentication request models
 
 /// Request model for user signup
@@ -24,57 +26,101 @@ class SignUpRequest {
     };
   }
 
-  /// Validates the signup request data
+  /// Validates the signup request data and returns general errors
   List<String> validate() {
+    final fieldErrors = validateFields();
     final errors = <String>[];
-
-    // Email validation
-    if (email.isEmpty) {
-      errors.add('Email is required');
-    } else if (!_isValidEmail(email)) {
-      errors.add('Please enter a valid email address');
+    
+    for (final fieldErrorList in fieldErrors.values) {
+      errors.addAll(fieldErrorList);
     }
-
-    // Username validation
-    if (username.isEmpty) {
-      errors.add('Username is required');
-    } else if (username.length < 3) {
-      errors.add('Username must be at least 3 characters long');
-    } else if (username.length > 30) {
-      errors.add('Username must be less than 30 characters');
-    } else if (!_isValidUsername(username)) {
-      errors.add('Username can only contain letters, numbers, and underscores');
-    }
-
-    // Password validation
-    if (password.isEmpty) {
-      errors.add('Password is required');
-    } else if (password.length < 8) {
-      errors.add('Password must be at least 8 characters long');
-    }
-
-    // Confirm password validation
-    if (confirmPassword.isEmpty) {
-      errors.add('Please confirm your password');
-    } else if (password != confirmPassword) {
-      errors.add('Passwords do not match');
-    }
-
+    
     return errors;
   }
 
-  /// Validates email format
+  /// Validates the signup request data and returns field-specific errors
+  Map<String, List<String>> validateFields() {
+    final fieldErrors = <String, List<String>>{};
+
+    // Email validation
+    final emailErrors = <String>[];
+    if (email.isEmpty) {
+      emailErrors.add('Email is required');
+    } else if (!_isValidEmail(email)) {
+      emailErrors.add('Please enter a valid email address');
+    }
+    if (emailErrors.isNotEmpty) {
+      fieldErrors['email'] = emailErrors;
+    }
+
+    // Username validation
+    final usernameErrors = <String>[];
+    if (username.isEmpty) {
+      usernameErrors.add('Username is required');
+    } else if (username.length < 3) {
+      usernameErrors.add('Username must be at least 3 characters long');
+    } else if (username.length > 30) {
+      usernameErrors.add('Username must be less than 30 characters');
+    } else if (!_isValidUsername(username)) {
+      usernameErrors.add('Username can only contain letters, numbers, and underscores');
+    }
+    if (usernameErrors.isNotEmpty) {
+      fieldErrors['username'] = usernameErrors;
+    }
+
+    // Password validation
+    final passwordErrors = <String>[];
+    if (password.isEmpty) {
+      passwordErrors.add('Password is required');
+    } else {
+      if (password.length < 8) {
+        passwordErrors.add('Password must be at least 8 characters long');
+      }
+      if (password.length > 128) {
+        passwordErrors.add('Password must be less than 128 characters');
+      }
+      if (!_hasValidPasswordStrength(password)) {
+        passwordErrors.add('Password must contain at least one letter and one number');
+      }
+    }
+    if (passwordErrors.isNotEmpty) {
+      fieldErrors['password'] = passwordErrors;
+    }
+
+    // Confirm password validation
+    final confirmPasswordErrors = <String>[];
+    if (confirmPassword.isEmpty) {
+      confirmPasswordErrors.add('Please confirm your password');
+    } else if (password != confirmPassword) {
+      confirmPasswordErrors.add('Passwords do not match');
+    }
+    if (confirmPasswordErrors.isNotEmpty) {
+      fieldErrors['confirmPassword'] = confirmPasswordErrors;
+    }
+
+    return fieldErrors;
+  }
+
+  /// Returns true if the signup request is valid
+  bool get isValid => validateFields().isEmpty;
+
+  /// Validates email format using a comprehensive regex pattern
   bool _isValidEmail(String email) {
-    final emailRegex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-    return emailRegex.hasMatch(email);
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    return emailRegex.hasMatch(email.trim());
   }
 
   /// Validates username format
   bool _isValidUsername(String username) {
     final usernameRegex = RegExp(r'^[a-zA-Z0-9_]+$');
     return usernameRegex.hasMatch(username);
+  }
+
+  /// Validates password strength (at least one letter and one number)
+  bool _hasValidPasswordStrength(String password) {
+    final hasLetter = RegExp(r'[a-zA-Z]').hasMatch(password);
+    final hasNumber = RegExp(r'[0-9]').hasMatch(password);
+    return hasLetter && hasNumber;
   }
 
   /// Creates a copy of this SignUpRequest with updated fields
@@ -131,31 +177,52 @@ class LoginRequest {
     };
   }
 
-  /// Validates the login request data
+  /// Validates the login request data and returns general errors
   List<String> validate() {
+    final fieldErrors = validateFields();
     final errors = <String>[];
-
-    // Email validation
-    if (email.isEmpty) {
-      errors.add('Email is required');
-    } else if (!_isValidEmail(email)) {
-      errors.add('Please enter a valid email address');
+    
+    for (final fieldErrorList in fieldErrors.values) {
+      errors.addAll(fieldErrorList);
     }
-
-    // Password validation
-    if (password.isEmpty) {
-      errors.add('Password is required');
-    }
-
+    
     return errors;
   }
 
-  /// Validates email format
+  /// Validates the login request data and returns field-specific errors
+  Map<String, List<String>> validateFields() {
+    final fieldErrors = <String, List<String>>{};
+
+    // Email validation
+    final emailErrors = <String>[];
+    if (email.isEmpty) {
+      emailErrors.add('Email is required');
+    } else if (!_isValidEmail(email)) {
+      emailErrors.add('Please enter a valid email address');
+    }
+    if (emailErrors.isNotEmpty) {
+      fieldErrors['email'] = emailErrors;
+    }
+
+    // Password validation
+    final passwordErrors = <String>[];
+    if (password.isEmpty) {
+      passwordErrors.add('Password is required');
+    }
+    if (passwordErrors.isNotEmpty) {
+      fieldErrors['password'] = passwordErrors;
+    }
+
+    return fieldErrors;
+  }
+
+  /// Returns true if the login request is valid
+  bool get isValid => validateFields().isEmpty;
+
+  /// Validates email format using a comprehensive regex pattern
   bool _isValidEmail(String email) {
-    final emailRegex = RegExp(
-      r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-    );
-    return emailRegex.hasMatch(email);
+    final emailRegex = RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
+    return emailRegex.hasMatch(email.trim());
   }
 
   /// Creates a copy of this LoginRequest with updated fields

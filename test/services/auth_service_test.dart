@@ -37,6 +37,21 @@ class MockAuthRepository implements AuthRepository {
   Future<void> logout() async {
     // Mock logout
   }
+  
+  @override
+  Future<bool> hasStoredToken() async {
+    return true;
+  }
+  
+  @override
+  Future<bool> isTokenExpired() async {
+    return false;
+  }
+  
+  @override
+  Future<void> clearExpiredToken() async {
+    // Mock clear expired token
+  }
 }
 
 void main() {

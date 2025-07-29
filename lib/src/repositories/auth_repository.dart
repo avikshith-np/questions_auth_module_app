@@ -41,6 +41,21 @@ abstract class AuthRepository {
   /// Throws [ApiException] for API-related errors
   /// Throws [NetworkException] for network-related errors
   Future<void> logout();
+  
+  /// Check if there is a stored authentication token
+  /// 
+  /// Returns true if a token is stored, false otherwise
+  Future<bool> hasStoredToken();
+  
+  /// Check if the stored token is expired
+  /// 
+  /// Returns true if token is expired or invalid, false if valid
+  Future<bool> isTokenExpired();
+  
+  /// Clear expired token from storage
+  /// 
+  /// This method clears both the token from storage and API client
+  Future<void> clearExpiredToken();
 }
 
 /// Implementation of AuthRepository using HTTP API client and token manager
@@ -178,6 +193,46 @@ class AuthRepositoryImpl implements AuthRepository {
         rethrow;
       }
       throw NetworkException('Unexpected error during logout: ${e.toString()}');
+    }
+  }
+  
+  @override
+  Future<bool> hasStoredToken() async {
+    try {
+      return await _tokenManager.hasValidToken();
+    } catch (e) {
+      return false;
+    }
+  }
+  
+  @override
+  Future<bool> isTokenExpired() async {
+    try {
+      return await _tokenManager.isTokenExpired();
+    } catch (e) {
+      // If we can't determine expiration status, assume expired for security
+      return true;
+    }
+  }
+  
+  @override
+  Future<void> clearExpiredToken() async {
+    try {
+      await _tokenManager.clearToken();
+      _apiClient.clearAuthToken();
+    } catch (e) {
+      // Ensure we always try to clear even if there's an error
+      try {
+        await _tokenManager.clearToken();
+      } catch (_) {}
+      try {
+        _apiClient.clearAuthToken();
+      } catch (_) {}
+      
+      if (e is AuthException) {
+        rethrow;
+      }
+      throw NetworkException('Unexpected error clearing expired token: ${e.toString()}');
     }
   }
 }

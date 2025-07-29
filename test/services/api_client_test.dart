@@ -274,7 +274,7 @@ void main() {
     });
 
     group('Error handling', () {
-      test('should throw ApiException for 400 Bad Request', () async {
+      test('should throw ApiException for 400 Bad Request with custom message', () async {
         // Arrange
         final errorResponse = {'message': 'Invalid request data'};
         when(mockClient.post(
@@ -291,17 +291,35 @@ void main() {
           () => apiClient.post('test', {}),
           throwsA(isA<ApiException>()
               .having((e) => e.statusCode, 'statusCode', equals(400))
-              .having((e) => e.message, 'message', contains('Bad Request'))),
+              .having((e) => e.message, 'message', equals('Invalid request data'))),
         );
       });
 
-      test('should throw ApiException for 401 Unauthorized', () async {
+      test('should throw ApiException for 400 Bad Request with user-friendly message', () async {
+        // Arrange
+        when(mockClient.post(
+          any,
+          headers: anyNamed('headers'),
+          body: anyNamed('body'),
+        )).thenAnswer((_) async => http.Response('Bad Request', 400));
+
+        // Act & Assert
+        expect(
+          () => apiClient.post('test', {}),
+          throwsA(isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', equals(400))
+              .having((e) => e.message, 'message', 
+                      equals('The request contains invalid data. Please check your input and try again.'))),
+        );
+      });
+
+      test('should throw ApiException for 401 Unauthorized with custom message', () async {
         // Arrange
         when(mockClient.get(
           any,
           headers: anyNamed('headers'),
         )).thenAnswer((_) async => http.Response(
-          jsonEncode({'message': 'Authentication required'}),
+          jsonEncode({'message': 'Invalid credentials provided'}),
           401,
         ));
 
@@ -310,7 +328,58 @@ void main() {
           () => apiClient.get('test'),
           throwsA(isA<ApiException>()
               .having((e) => e.statusCode, 'statusCode', equals(401))
-              .having((e) => e.message, 'message', contains('Unauthorized'))),
+              .having((e) => e.message, 'message', equals('Invalid credentials provided'))),
+        );
+      });
+
+      test('should throw ApiException for 401 Unauthorized with user-friendly message', () async {
+        // Arrange
+        when(mockClient.get(
+          any,
+          headers: anyNamed('headers'),
+        )).thenAnswer((_) async => http.Response('Unauthorized', 401));
+
+        // Act & Assert
+        expect(
+          () => apiClient.get('test'),
+          throwsA(isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', equals(401))
+              .having((e) => e.message, 'message', 
+                      equals('Authentication failed. Please check your credentials and try again.'))),
+        );
+      });
+
+      test('should throw ApiException for 403 Forbidden with user-friendly message', () async {
+        // Arrange
+        when(mockClient.get(
+          any,
+          headers: anyNamed('headers'),
+        )).thenAnswer((_) async => http.Response('', 403));
+
+        // Act & Assert
+        expect(
+          () => apiClient.get('test'),
+          throwsA(isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', equals(403))
+              .having((e) => e.message, 'message', 
+                      equals('You do not have permission to perform this action.'))),
+        );
+      });
+
+      test('should throw ApiException for 404 Not Found with user-friendly message', () async {
+        // Arrange
+        when(mockClient.get(
+          any,
+          headers: anyNamed('headers'),
+        )).thenAnswer((_) async => http.Response('', 404));
+
+        // Act & Assert
+        expect(
+          () => apiClient.get('test'),
+          throwsA(isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', equals(404))
+              .having((e) => e.message, 'message', 
+                      equals('The requested resource was not found.'))),
         );
       });
 
@@ -339,7 +408,87 @@ void main() {
               .having((e) => e.fieldErrors['email'], 'email errors', 
                       equals(['Email is required', 'Email format is invalid']))
               .having((e) => e.fieldErrors['password'], 'password errors', 
-                      equals(['Password is too short']))),
+                      equals(['Password is too short']))
+              .having((e) => e.message, 'message', equals('Validation failed'))),
+        );
+      });
+
+      test('should throw ValidationException for 422 with string field errors', () async {
+        // Arrange
+        final errorResponse = {
+          'errors': {
+            'email': 'Email is required',
+            'password': 'Password is too short'
+          }
+        };
+        when(mockClient.post(
+          any,
+          headers: anyNamed('headers'),
+          body: anyNamed('body'),
+        )).thenAnswer((_) async => http.Response(
+          jsonEncode(errorResponse),
+          422,
+        ));
+
+        // Act & Assert
+        expect(
+          () => apiClient.post('test', {}),
+          throwsA(isA<ValidationException>()
+              .having((e) => e.fieldErrors['email'], 'email errors', equals(['Email is required']))
+              .having((e) => e.fieldErrors['password'], 'password errors', equals(['Password is too short']))),
+        );
+      });
+
+      test('should throw ApiException for 422 without field errors', () async {
+        // Arrange
+        when(mockClient.post(
+          any,
+          headers: anyNamed('headers'),
+          body: anyNamed('body'),
+        )).thenAnswer((_) async => http.Response('', 422));
+
+        // Act & Assert
+        expect(
+          () => apiClient.post('test', {}),
+          throwsA(isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', equals(422))
+              .having((e) => e.message, 'message', 
+                      equals('The provided data is invalid. Please correct the errors and try again.'))),
+        );
+      });
+
+      test('should throw ApiException for 429 Too Many Requests', () async {
+        // Arrange
+        when(mockClient.post(
+          any,
+          headers: anyNamed('headers'),
+          body: anyNamed('body'),
+        )).thenAnswer((_) async => http.Response('', 429));
+
+        // Act & Assert
+        expect(
+          () => apiClient.post('test', {}),
+          throwsA(isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', equals(429))
+              .having((e) => e.message, 'message', 
+                      equals('Too many requests. Please wait a moment and try again.'))),
+        );
+      });
+
+      test('should throw ApiException for 500 Internal Server Error', () async {
+        // Arrange
+        when(mockClient.get(
+          any,
+          headers: anyNamed('headers'),
+        )).thenAnswer((_) async => http.Response('', 500));
+
+        // Act & Assert
+        expect(
+          () => apiClient.get('test'),
+          throwsA(isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', equals(500))
+              .having((e) => e.message, 'message', 
+                      equals('A server error occurred. Please try again later.'))),
         );
       });
 
@@ -354,7 +503,40 @@ void main() {
         expect(
           () => apiClient.get('test'),
           throwsA(isA<NetworkException>()
-              .having((e) => e.message, 'message', contains('Bad Gateway'))),
+              .having((e) => e.message, 'message', 
+                      equals('The server is temporarily unavailable. Please try again later.'))),
+        );
+      });
+
+      test('should throw NetworkException for 503 Service Unavailable', () async {
+        // Arrange
+        when(mockClient.get(
+          any,
+          headers: anyNamed('headers'),
+        )).thenAnswer((_) async => http.Response('', 503));
+
+        // Act & Assert
+        expect(
+          () => apiClient.get('test'),
+          throwsA(isA<NetworkException>()
+              .having((e) => e.message, 'message', 
+                      equals('The service is temporarily unavailable. Please try again later.'))),
+        );
+      });
+
+      test('should throw TimeoutException for 504 Gateway Timeout', () async {
+        // Arrange
+        when(mockClient.get(
+          any,
+          headers: anyNamed('headers'),
+        )).thenAnswer((_) async => http.Response('', 504));
+
+        // Act & Assert
+        expect(
+          () => apiClient.get('test'),
+          throwsA(isA<TimeoutException>()
+              .having((e) => e.message, 'message', 
+                      equals('Server response timeout'))),
         );
       });
 
@@ -401,6 +583,332 @@ void main() {
           throwsA(isA<NetworkException>()
               .having((e) => e.message, 'message', contains('Invalid response format'))),
         );
+      });
+
+      group('Error message extraction', () {
+        test('should extract message from different response fields', () async {
+          final testCases = [
+            {'message': 'Error from message field'},
+            {'error': 'Error from error field'},
+            {'detail': 'Error from detail field'},
+            {'error_description': 'Error from error_description field'},
+            {'msg': 'Error from msg field'},
+          ];
+
+          for (final testCase in testCases) {
+            final testClient = MockClient();
+            final testApiClient = HttpApiClient(
+              baseUrl: baseUrl,
+              client: testClient,
+              timeout: const Duration(seconds: 5),
+              maxRetries: 0, // Disable retries for this test
+            );
+            
+            when(testClient.get(
+              any,
+              headers: anyNamed('headers'),
+            )).thenAnswer((_) async => http.Response(
+              jsonEncode(testCase),
+              400,
+            ));
+
+            expect(
+              () => testApiClient.get('test'),
+              throwsA(isA<ApiException>()
+                  .having((e) => e.message, 'message', equals(testCase.values.first))),
+            );
+            
+            testApiClient.dispose();
+          }
+        });
+
+        test('should extract message from errors array', () async {
+          // Arrange
+          final errorResponse = {
+            'errors': ['First error message', 'Second error message']
+          };
+          when(mockClient.get(
+            any,
+            headers: anyNamed('headers'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            400,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.get('test'),
+            throwsA(isA<ApiException>()
+                .having((e) => e.message, 'message', equals('First error message'))),
+          );
+        });
+
+        test('should extract message from errors object', () async {
+          // Arrange
+          final errorResponse = {
+            'errors': {
+              'email': ['Email error'],
+              'password': ['Password error']
+            }
+          };
+          when(mockClient.get(
+            any,
+            headers: anyNamed('headers'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            400,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.get('test'),
+            throwsA(isA<ApiException>()
+                .having((e) => e.message, 'message', equals('Email error'))),
+          );
+        });
+
+        test('should use default message when no error message found', () async {
+          // Arrange
+          when(mockClient.get(
+            any,
+            headers: anyNamed('headers'),
+          )).thenAnswer((_) async => http.Response('{}', 400));
+
+          // Act & Assert
+          expect(
+            () => apiClient.get('test'),
+            throwsA(isA<ApiException>()
+                .having((e) => e.message, 'message', 
+                        equals('The request contains invalid data. Please check your input and try again.'))),
+          );
+        });
+      });
+
+      group('Error code handling', () {
+        test('should include error code when present', () async {
+          // Arrange
+          final errorResponse = {
+            'message': 'Custom error',
+            'code': 'CUSTOM_ERROR_CODE'
+          };
+          when(mockClient.get(
+            any,
+            headers: anyNamed('headers'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            400,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.get('test'),
+            throwsA(isA<ApiException>()
+                .having((e) => e.code, 'code', equals('CUSTOM_ERROR_CODE'))
+                .having((e) => e.message, 'message', equals('Custom error'))),
+          );
+        });
+
+        test('should handle numeric error codes', () async {
+          // Arrange
+          final errorResponse = {
+            'message': 'Numeric code error',
+            'code': 12345
+          };
+          when(mockClient.get(
+            any,
+            headers: anyNamed('headers'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            400,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.get('test'),
+            throwsA(isA<ApiException>()
+                .having((e) => e.code, 'code', equals('12345'))),
+          );
+        });
+      });
+
+      group('Unknown status codes', () {
+        test('should handle unknown status codes with user-friendly message', () async {
+          // Arrange
+          when(mockClient.get(
+            any,
+            headers: anyNamed('headers'),
+          )).thenAnswer((_) async => http.Response('', 418)); // I'm a teapot
+
+          // Act & Assert
+          expect(
+            () => apiClient.get('test'),
+            throwsA(isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', equals(418))
+                .having((e) => e.message, 'message', 
+                        equals('An unexpected error occurred. Please try again later.'))),
+          );
+        });
+
+        test('should preserve custom message for unknown status codes', () async {
+          // Arrange
+          final errorResponse = {'message': 'Custom teapot error'};
+          when(mockClient.get(
+            any,
+            headers: anyNamed('headers'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            418,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.get('test'),
+            throwsA(isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', equals(418))
+                .having((e) => e.message, 'message', equals('Custom teapot error'))),
+          );
+        });
+      });
+
+      group('Complex error scenarios', () {
+        test('should handle malformed JSON in error response', () async {
+          // Arrange
+          when(mockClient.post(
+            any,
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            '{"message": "Error", "invalid": json}', // Malformed JSON
+            400,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.post('test', {}),
+            throwsA(isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', equals(400))
+                .having((e) => e.message, 'message', equals('{"message": "Error", "invalid": json}'))),
+          );
+        });
+
+        test('should handle empty error response with non-200 status', () async {
+          // Arrange
+          when(mockClient.get(
+            any,
+            headers: anyNamed('headers'),
+          )).thenAnswer((_) async => http.Response('', 400));
+
+          // Act & Assert
+          expect(
+            () => apiClient.get('test'),
+            throwsA(isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', equals(400))
+                .having((e) => e.message, 'message', 
+                        equals('The request contains invalid data. Please check your input and try again.'))),
+          );
+        });
+
+        test('should handle nested error structures', () async {
+          // Arrange
+          final errorResponse = {
+            'error': {
+              'message': 'Nested error message',
+              'code': 'NESTED_ERROR'
+            }
+          };
+          when(mockClient.post(
+            any,
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            400,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.post('test', {}),
+            throwsA(isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', equals(400))
+                .having((e) => e.message, 'message', 
+                        equals('{message: Nested error message, code: NESTED_ERROR}'))),
+          );
+        });
+
+        test('should handle validation errors with mixed data types', () async {
+          // Arrange
+          final errorResponse = {
+            'message': 'Validation failed',
+            'errors': {
+              'email': ['Required', 'Invalid format'],
+              'age': 'Must be a number',
+              'tags': ['Tag 1 invalid', 'Tag 2 invalid'],
+              'active': true, // Boolean value
+              'count': 42, // Numeric value
+            }
+          };
+          when(mockClient.post(
+            any,
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            422,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.post('test', {}),
+            throwsA(isA<ValidationException>()
+                .having((e) => e.fieldErrors['email'], 'email errors', 
+                        equals(['Required', 'Invalid format']))
+                .having((e) => e.fieldErrors['age'], 'age errors', 
+                        equals(['Must be a number']))
+                .having((e) => e.fieldErrors['tags'], 'tags errors', 
+                        equals(['Tag 1 invalid', 'Tag 2 invalid']))
+                .having((e) => e.fieldErrors['active'], 'active errors', 
+                        equals(['true']))
+                .having((e) => e.fieldErrors['count'], 'count errors', 
+                        equals(['42']))),
+          );
+        });
+
+        test('should handle server error with HTML response', () async {
+          // Arrange
+          const htmlResponse = '<html><body><h1>500 Internal Server Error</h1></body></html>';
+          when(mockClient.get(
+            any,
+            headers: anyNamed('headers'),
+          )).thenAnswer((_) async => http.Response(htmlResponse, 500));
+
+          // Act & Assert
+          expect(
+            () => apiClient.get('test'),
+            throwsA(isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', equals(500))
+                .having((e) => e.message, 'message', 
+                        equals('A server error occurred. Please try again later.'))),
+          );
+        });
+
+        test('should handle timeout with proper error message', () async {
+          // Arrange
+          when(mockClient.post(
+            any,
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async {
+            await Future.delayed(const Duration(seconds: 10));
+            return http.Response('{}', 200);
+          });
+
+          // Act & Assert
+          expect(
+            () => apiClient.post('test', {}),
+            throwsA(isA<TimeoutException>()
+                .having((e) => e.message, 'message', contains('Request timed out after'))),
+          );
+        });
       });
     });
 

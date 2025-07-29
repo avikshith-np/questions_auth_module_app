@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../core/exceptions.dart';
 
 /// Abstract interface for API client operations
@@ -39,6 +41,9 @@ class HttpApiClient implements ApiClient {
   final String _baseUrl;
   final Duration _timeout;
   final Map<String, String> _defaultHeaders;
+  final int _maxRetries;
+  final Duration _retryDelay;
+  final Connectivity _connectivity;
   String? _authToken;
   
   /// Creates an HttpApiClient instance
@@ -47,19 +52,28 @@ class HttpApiClient implements ApiClient {
   /// [client] - Optional HTTP client (useful for testing)
   /// [timeout] - Request timeout duration (defaults to 30 seconds)
   /// [defaultHeaders] - Default headers to include in all requests
+  /// [maxRetries] - Maximum number of retry attempts for failed requests (defaults to 3)
+  /// [retryDelay] - Delay between retry attempts (defaults to 1 second)
+  /// [connectivity] - Connectivity checker (useful for testing)
   HttpApiClient({
     required String baseUrl,
     http.Client? client,
     Duration timeout = const Duration(seconds: 30),
     Map<String, String> defaultHeaders = const {},
+    int maxRetries = 3,
+    Duration retryDelay = const Duration(seconds: 1),
+    Connectivity? connectivity,
   }) : _client = client ?? http.Client(),
        _baseUrl = baseUrl.endsWith('/') ? baseUrl : '$baseUrl/',
        _timeout = timeout,
-       _defaultHeaders = Map.from(defaultHeaders);
+       _defaultHeaders = Map.from(defaultHeaders),
+       _maxRetries = maxRetries,
+       _retryDelay = retryDelay,
+       _connectivity = connectivity ?? Connectivity();
 
   @override
   Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> data) async {
-    try {
+    return _executeWithRetry(() async {
       final uri = _buildUri(endpoint);
       final headers = _buildHeaders();
       
@@ -72,23 +86,12 @@ class HttpApiClient implements ApiClient {
           .timeout(_timeout);
       
       return _handleResponse(response);
-    } on SocketException catch (e) {
-      throw NetworkException('Network connection failed: ${e.message}');
-    } on HttpException catch (e) {
-      throw NetworkException('HTTP error: ${e.message}');
-    } on FormatException catch (e) {
-      throw NetworkException('Invalid response format: ${e.message}');
-    } catch (e) {
-      if (e is AuthException) {
-        rethrow;
-      }
-      throw NetworkException('Unexpected error: ${e.toString()}');
-    }
+    });
   }
 
   @override
   Future<Map<String, dynamic>> get(String endpoint) async {
-    try {
+    return _executeWithRetry(() async {
       final uri = _buildUri(endpoint);
       final headers = _buildHeaders();
       
@@ -97,18 +100,7 @@ class HttpApiClient implements ApiClient {
           .timeout(_timeout);
       
       return _handleResponse(response);
-    } on SocketException catch (e) {
-      throw NetworkException('Network connection failed: ${e.message}');
-    } on HttpException catch (e) {
-      throw NetworkException('HTTP error: ${e.message}');
-    } on FormatException catch (e) {
-      throw NetworkException('Invalid response format: ${e.message}');
-    } catch (e) {
-      if (e is AuthException) {
-        rethrow;
-      }
-      throw NetworkException('Unexpected error: ${e.toString()}');
-    }
+    });
   }
 
   @override
@@ -161,55 +153,305 @@ class HttpApiClient implements ApiClient {
     }
     
     // Extract error message from response
-    String errorMessage = 'Request failed';
-    String? errorCode;
+    String errorMessage = _extractErrorMessage(responseData, statusCode);
+    String? errorCode = responseData?['code']?.toString();
     
-    if (responseData != null) {
-      errorMessage = responseData['message'] ?? 
-                    responseData['error'] ?? 
-                    responseData['detail'] ?? 
-                    'Request failed';
-      errorCode = responseData['code']?.toString();
-    }
-    
-    // Handle specific HTTP status codes
+    // Handle specific HTTP status codes with user-friendly messages
     switch (statusCode) {
       case 400:
-        throw ApiException('Bad Request: $errorMessage', statusCode, errorCode);
+        throw ApiException(_getUserFriendlyMessage(400, errorMessage), statusCode, errorCode);
       case 401:
-        throw ApiException('Unauthorized: $errorMessage', statusCode, errorCode);
+        throw ApiException(_getUserFriendlyMessage(401, errorMessage), statusCode, errorCode);
       case 403:
-        throw ApiException('Forbidden: $errorMessage', statusCode, errorCode);
+        throw ApiException(_getUserFriendlyMessage(403, errorMessage), statusCode, errorCode);
       case 404:
-        throw ApiException('Not Found: $errorMessage', statusCode, errorCode);
+        throw ApiException(_getUserFriendlyMessage(404, errorMessage), statusCode, errorCode);
       case 422:
         // Handle validation errors specially
         if (responseData != null && responseData.containsKey('errors')) {
           final errors = responseData['errors'] as Map<String, dynamic>?;
           if (errors != null) {
-            final fieldErrors = <String, List<String>>{};
-            errors.forEach((key, value) {
-              if (value is List) {
-                fieldErrors[key] = value.map((e) => e.toString()).toList();
-              } else {
-                fieldErrors[key] = [value.toString()];
-              }
-            });
-            throw ValidationException(errorMessage, fieldErrors);
+            final fieldErrors = _parseFieldErrors(errors);
+            throw ValidationException(_getUserFriendlyMessage(422, errorMessage), fieldErrors);
           }
         }
-        throw ApiException('Validation Error: $errorMessage', statusCode, errorCode);
+        throw ApiException(_getUserFriendlyMessage(422, errorMessage), statusCode, errorCode);
+      case 429:
+        throw ApiException(_getUserFriendlyMessage(429, errorMessage), statusCode, errorCode);
       case 500:
-        throw ApiException('Internal Server Error: $errorMessage', statusCode, errorCode);
+        throw ApiException(_getUserFriendlyMessage(500, errorMessage), statusCode, errorCode);
       case 502:
-        throw NetworkException('Bad Gateway: Server is temporarily unavailable');
+        throw NetworkException(_getUserFriendlyMessage(502, 'Server is temporarily unavailable'));
       case 503:
-        throw NetworkException('Service Unavailable: Server is temporarily unavailable');
+        throw NetworkException(_getUserFriendlyMessage(503, 'Server is temporarily unavailable'));
       case 504:
-        throw NetworkException('Gateway Timeout: Server response timeout');
+        throw TimeoutException('Server response timeout');
       default:
-        throw ApiException('HTTP Error $statusCode: $errorMessage', statusCode, errorCode);
+        throw ApiException(_getUserFriendlyMessage(statusCode, errorMessage), statusCode, errorCode);
     }
+  }
+
+  /// Extracts error message from response data
+  String _extractErrorMessage(Map<String, dynamic>? responseData, int statusCode) {
+    if (responseData == null) {
+      return _getDefaultErrorMessage(statusCode);
+    }
+
+    // Try different common error message fields
+    final message = responseData['message'] ?? 
+                   responseData['error'] ?? 
+                   responseData['detail'] ?? 
+                   responseData['error_description'] ??
+                   responseData['msg'];
+
+    if (message != null) {
+      return message.toString();
+    }
+
+    // If no message found, try to extract from errors object
+    if (responseData.containsKey('errors')) {
+      final errors = responseData['errors'];
+      if (errors is Map<String, dynamic> && errors.isNotEmpty) {
+        final firstError = errors.values.first;
+        if (firstError is List && firstError.isNotEmpty) {
+          return firstError.first.toString();
+        } else if (firstError is String) {
+          return firstError;
+        }
+      } else if (errors is List && errors.isNotEmpty) {
+        return errors.first.toString();
+      } else if (errors is String) {
+        return errors;
+      }
+    }
+
+    return _getDefaultErrorMessage(statusCode);
+  }
+
+  /// Parses field errors from API response
+  Map<String, List<String>> _parseFieldErrors(Map<String, dynamic> errors) {
+    final fieldErrors = <String, List<String>>{};
+    
+    errors.forEach((key, value) {
+      if (value is List) {
+        fieldErrors[key] = value.map((e) => e.toString()).toList();
+      } else if (value is String) {
+        fieldErrors[key] = [value];
+      } else {
+        fieldErrors[key] = [value.toString()];
+      }
+    });
+    
+    return fieldErrors;
+  }
+
+  /// Returns user-friendly error messages based on status code
+  String _getUserFriendlyMessage(int statusCode, String originalMessage) {
+    switch (statusCode) {
+      case 400:
+        return _isGenericMessage(originalMessage) 
+            ? 'The request contains invalid data. Please check your input and try again.'
+            : originalMessage;
+      case 401:
+        return _isGenericMessage(originalMessage)
+            ? 'Authentication failed. Please check your credentials and try again.'
+            : originalMessage;
+      case 403:
+        return _isGenericMessage(originalMessage)
+            ? 'You do not have permission to perform this action.'
+            : originalMessage;
+      case 404:
+        return _isGenericMessage(originalMessage)
+            ? 'The requested resource was not found.'
+            : originalMessage;
+      case 422:
+        return _isGenericMessage(originalMessage)
+            ? 'The provided data is invalid. Please correct the errors and try again.'
+            : originalMessage;
+      case 429:
+        return _isGenericMessage(originalMessage)
+            ? 'Too many requests. Please wait a moment and try again.'
+            : originalMessage;
+      case 500:
+        return _isGenericMessage(originalMessage)
+            ? 'A server error occurred. Please try again later.'
+            : originalMessage;
+      case 502:
+        return 'The server is temporarily unavailable. Please try again later.';
+      case 503:
+        return 'The service is temporarily unavailable. Please try again later.';
+      case 504:
+        return 'The request timed out. Please check your connection and try again.';
+      default:
+        return _isGenericMessage(originalMessage)
+            ? 'An unexpected error occurred. Please try again later.'
+            : originalMessage;
+    }
+  }
+
+  /// Returns default error message for status code
+  String _getDefaultErrorMessage(int statusCode) {
+    switch (statusCode) {
+      case 400:
+        return 'Bad Request';
+      case 401:
+        return 'Unauthorized';
+      case 403:
+        return 'Forbidden';
+      case 404:
+        return 'Not Found';
+      case 422:
+        return 'Validation Error';
+      case 429:
+        return 'Too Many Requests';
+      case 500:
+        return 'Internal Server Error';
+      case 502:
+        return 'Bad Gateway';
+      case 503:
+        return 'Service Unavailable';
+      case 504:
+        return 'Gateway Timeout';
+      default:
+        return 'Request Failed';
+    }
+  }
+
+  /// Checks if the message is generic and should be replaced with user-friendly version
+  bool _isGenericMessage(String message) {
+    final genericMessages = [
+      'Request failed',
+      'Bad Request',
+      'Unauthorized',
+      'Forbidden',
+      'Not Found',
+      'Validation Error',
+      'Too Many Requests',
+      'Internal Server Error',
+      'Bad Gateway',
+      'Service Unavailable',
+      'Gateway Timeout',
+    ];
+    
+    return genericMessages.any((generic) => 
+        message.toLowerCase().contains(generic.toLowerCase()));
+  }
+
+  /// Executes a request with retry logic and connectivity checking
+  Future<Map<String, dynamic>> _executeWithRetry(
+    Future<Map<String, dynamic>> Function() request,
+  ) async {
+    // Check connectivity before making the request
+    await _checkConnectivity();
+    
+    int attempts = 0;
+    Exception? lastException;
+    
+    while (attempts <= _maxRetries) {
+      try {
+        return await request();
+      } on TimeoutException catch (e) {
+        lastException = e;
+        attempts++;
+        if (attempts <= _maxRetries) {
+          await Future.delayed(_retryDelay * attempts); // Exponential backoff
+          continue;
+        }
+        rethrow;
+      } on SocketException catch (e) {
+        lastException = NetworkException('Network connection failed: ${e.message}');
+        attempts++;
+        if (attempts <= _maxRetries && _shouldRetryOnSocketException(e)) {
+          await Future.delayed(_retryDelay * attempts);
+          // Re-check connectivity before retry
+          await _checkConnectivity();
+          continue;
+        }
+        throw lastException!;
+      } on HttpException catch (e) {
+        lastException = NetworkException('HTTP error: ${e.message}');
+        attempts++;
+        if (attempts <= _maxRetries) {
+          await Future.delayed(_retryDelay * attempts);
+          continue;
+        }
+        throw lastException!;
+      } on FormatException catch (e) {
+        // Don't retry format exceptions as they're likely permanent
+        throw NetworkException('Invalid response format: ${e.message}');
+      } on ApiException catch (e) {
+        // Only retry on server errors (5xx), not client errors (4xx)
+        if (e.statusCode >= 500 && e.statusCode < 600) {
+          lastException = e;
+          attempts++;
+          if (attempts <= _maxRetries) {
+            await Future.delayed(_retryDelay * attempts);
+            continue;
+          }
+        }
+        rethrow;
+      } on AuthException {
+        // Don't retry auth exceptions
+        rethrow;
+      } catch (e) {
+        if (e.toString().contains('TimeoutException')) {
+          lastException = TimeoutException('Request timed out after ${_timeout.inSeconds} seconds');
+          attempts++;
+          if (attempts <= _maxRetries) {
+            await Future.delayed(_retryDelay * attempts);
+            continue;
+          }
+          throw lastException!;
+        }
+        
+        lastException = NetworkException('Unexpected error: ${e.toString()}');
+        attempts++;
+        if (attempts <= _maxRetries) {
+          await Future.delayed(_retryDelay * attempts);
+          continue;
+        }
+        throw lastException!;
+      }
+    }
+    
+    // This should never be reached, but just in case
+    throw lastException ?? NetworkException('Request failed after $attempts attempts');
+  }
+  
+  /// Checks network connectivity and throws ConnectivityException if offline
+  Future<void> _checkConnectivity() async {
+    try {
+      final connectivityResult = await _connectivity.checkConnectivity();
+      
+      // Check if connectivity result is 'none' (offline)
+      if (connectivityResult == ConnectivityResult.none) {
+        throw const ConnectivityException(
+          'No internet connection available. Please check your network settings and try again.'
+        );
+      }
+    } catch (e) {
+      if (e is ConnectivityException) {
+        rethrow;
+      }
+      // If connectivity check fails, continue with the request
+      // The actual network error will be caught during the HTTP request
+    }
+  }
+  
+  /// Determines if a SocketException should trigger a retry
+  bool _shouldRetryOnSocketException(SocketException e) {
+    // Retry on connection refused, timeout, or network unreachable
+    final retryableMessages = [
+      'Connection refused',
+      'Connection timed out',
+      'Network is unreachable',
+      'Host is unreachable',
+      'Connection reset by peer',
+      'Broken pipe',
+    ];
+    
+    return retryableMessages.any((message) => 
+        e.message.toLowerCase().contains(message.toLowerCase()));
   }
 
   /// Disposes of the HTTP client resources

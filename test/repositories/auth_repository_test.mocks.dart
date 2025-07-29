@@ -108,4 +108,20 @@ class MockTokenManager extends _i1.Mock implements _i4.TokenManager {
             returnValue: _i3.Future<bool>.value(false),
           )
           as _i3.Future<bool>);
+
+  @override
+  _i3.Future<bool> isTokenExpired() =>
+      (super.noSuchMethod(
+            Invocation.method(#isTokenExpired, []),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
+
+  @override
+  _i3.Future<DateTime?> getTokenExpiration() =>
+      (super.noSuchMethod(
+            Invocation.method(#getTokenExpiration, []),
+            returnValue: _i3.Future<DateTime?>.value(),
+          )
+          as _i3.Future<DateTime?>);
 }

@@ -35,6 +35,28 @@ void main() {
         expect(errors, isEmpty);
       });
 
+      test('should return true for isValid when request is valid', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          username: 'testuser',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        expect(request.isValid, isTrue);
+      });
+
+      test('should return false for isValid when request is invalid', () {
+        const request = SignUpRequest(
+          email: 'invalid-email',
+          username: 'testuser',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        expect(request.isValid, isFalse);
+      });
+
       test('should return error for empty email', () {
         const request = SignUpRequest(
           email: '',
@@ -152,6 +174,46 @@ void main() {
         expect(errors, contains('Password must be at least 8 characters long'));
       });
 
+      test('should return error for long password', () {
+        final longPassword = 'a' * 129; // 129 characters
+        final request = SignUpRequest(
+          email: 'test@example.com',
+          username: 'testuser',
+          password: longPassword,
+          confirmPassword: longPassword,
+        );
+
+        final errors = request.validate();
+
+        expect(errors, contains('Password must be less than 128 characters'));
+      });
+
+      test('should return error for password without letters', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          username: 'testuser',
+          password: '12345678',
+          confirmPassword: '12345678',
+        );
+
+        final errors = request.validate();
+
+        expect(errors, contains('Password must contain at least one letter and one number'));
+      });
+
+      test('should return error for password without numbers', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          username: 'testuser',
+          password: 'abcdefgh',
+          confirmPassword: 'abcdefgh',
+        );
+
+        final errors = request.validate();
+
+        expect(errors, contains('Password must contain at least one letter and one number'));
+      });
+
       test('should return error for empty confirm password', () {
         const request = SignUpRequest(
           email: 'test@example.com',
@@ -188,11 +250,135 @@ void main() {
 
         final errors = request.validate();
 
-        expect(errors.length, 4);
+        expect(errors.length, 5); // Updated to expect 5 errors due to password strength validation
         expect(errors, contains('Please enter a valid email address'));
         expect(errors, contains('Username must be at least 3 characters long'));
         expect(errors, contains('Password must be at least 8 characters long'));
+        expect(errors, contains('Password must contain at least one letter and one number'));
         expect(errors, contains('Passwords do not match'));
+      });
+    });
+
+    group('validateFields', () {
+      test('should return empty map for valid signup request', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          username: 'testuser',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors, isEmpty);
+      });
+
+      test('should return field-specific errors for invalid email', () {
+        const request = SignUpRequest(
+          email: 'invalid-email',
+          username: 'testuser',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors['email'], contains('Please enter a valid email address'));
+        expect(fieldErrors['username'], isNull);
+        expect(fieldErrors['password'], isNull);
+        expect(fieldErrors['confirmPassword'], isNull);
+      });
+
+      test('should return field-specific errors for invalid username', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          username: 'ab',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors['email'], isNull);
+        expect(fieldErrors['username'], contains('Username must be at least 3 characters long'));
+        expect(fieldErrors['password'], isNull);
+        expect(fieldErrors['confirmPassword'], isNull);
+      });
+
+      test('should return field-specific errors for invalid password', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          username: 'testuser',
+          password: '123',
+          confirmPassword: '123',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors['email'], isNull);
+        expect(fieldErrors['username'], isNull);
+        expect(fieldErrors['password'], isNotNull);
+        expect(fieldErrors['password'], contains('Password must be at least 8 characters long'));
+        expect(fieldErrors['confirmPassword'], isNull);
+      });
+
+      test('should return field-specific errors for mismatched passwords', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          username: 'testuser',
+          password: 'password123',
+          confirmPassword: 'password456',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors['email'], isNull);
+        expect(fieldErrors['username'], isNull);
+        expect(fieldErrors['password'], isNull);
+        expect(fieldErrors['confirmPassword'], contains('Passwords do not match'));
+      });
+
+      test('should return multiple field errors for completely invalid request', () {
+        const request = SignUpRequest(
+          email: 'invalid-email',
+          username: 'ab',
+          password: '123',
+          confirmPassword: '456',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors['email'], contains('Please enter a valid email address'));
+        expect(fieldErrors['username'], contains('Username must be at least 3 characters long'));
+        expect(fieldErrors['password'], isNotNull);
+        expect(fieldErrors['password']!.length, greaterThan(1)); // Multiple password errors
+        expect(fieldErrors['confirmPassword'], contains('Passwords do not match'));
+      });
+
+      test('should handle email with whitespace', () {
+        const request = SignUpRequest(
+          email: '  test@example.com  ',
+          username: 'testuser',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors, isEmpty); // Should be valid after trimming
+      });
+
+      test('should validate complex email formats', () {
+        const request = SignUpRequest(
+          email: 'user.name+tag@example-domain.co.uk',
+          username: 'testuser',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors['email'], isNull);
       });
     });
 
@@ -353,6 +539,24 @@ void main() {
         expect(errors, contains('Password is required'));
       });
 
+      test('should return true for isValid when request is valid', () {
+        const request = LoginRequest(
+          email: 'test@example.com',
+          password: 'password123',
+        );
+
+        expect(request.isValid, isTrue);
+      });
+
+      test('should return false for isValid when request is invalid', () {
+        const request = LoginRequest(
+          email: 'invalid-email',
+          password: 'password123',
+        );
+
+        expect(request.isValid, isFalse);
+      });
+
       test('should return multiple errors for invalid request', () {
         const request = LoginRequest(
           email: 'invalid-email',
@@ -364,6 +568,66 @@ void main() {
         expect(errors.length, 2);
         expect(errors, contains('Please enter a valid email address'));
         expect(errors, contains('Password is required'));
+      });
+    });
+
+    group('validateFields', () {
+      test('should return empty map for valid login request', () {
+        const request = LoginRequest(
+          email: 'test@example.com',
+          password: 'password123',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors, isEmpty);
+      });
+
+      test('should return field-specific errors for invalid email', () {
+        const request = LoginRequest(
+          email: 'invalid-email',
+          password: 'password123',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors['email'], contains('Please enter a valid email address'));
+        expect(fieldErrors['password'], isNull);
+      });
+
+      test('should return field-specific errors for empty password', () {
+        const request = LoginRequest(
+          email: 'test@example.com',
+          password: '',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors['email'], isNull);
+        expect(fieldErrors['password'], contains('Password is required'));
+      });
+
+      test('should return multiple field errors for invalid request', () {
+        const request = LoginRequest(
+          email: 'invalid-email',
+          password: '',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors['email'], contains('Please enter a valid email address'));
+        expect(fieldErrors['password'], contains('Password is required'));
+      });
+
+      test('should handle email with whitespace', () {
+        const request = LoginRequest(
+          email: '  test@example.com  ',
+          password: 'password123',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors, isEmpty); // Should be valid after trimming
       });
     });
 

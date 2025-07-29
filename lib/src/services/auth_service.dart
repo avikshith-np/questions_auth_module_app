@@ -44,10 +44,44 @@ class AuthServiceImpl implements AuthService {
   @override
   Future<void> initialize() async {
     try {
+      // Check if we have a stored token
+      final hasToken = await _repository.hasStoredToken();
+      if (!hasToken) {
+        _stateNotifier.setUnauthenticated();
+        return;
+      }
+      
+      // Check if token is expired
+      final isExpired = await _repository.isTokenExpired();
+      if (isExpired) {
+        // Clear expired token and set unauthenticated
+        await _repository.clearExpiredToken();
+        _stateNotifier.setUnauthenticated('Session expired');
+        return;
+      }
+      
+      // Try to get current user with stored token
       final user = await _repository.getCurrentUser();
       _stateNotifier.setAuthenticated(user);
+    } on TokenException catch (e) {
+      // Token is invalid or expired, clear it
+      await _repository.clearExpiredToken();
+      _stateNotifier.setUnauthenticated(e.message);
+    } on ApiException catch (e) {
+      // API error (e.g., 401 Unauthorized), likely expired token
+      if (e.statusCode == 401) {
+        await _repository.clearExpiredToken();
+        _stateNotifier.setUnauthenticated('Session expired');
+      } else {
+        _stateNotifier.setUnauthenticated(e.message);
+      }
+    } on NetworkException {
+      // Network error during initialization - keep unknown state
+      // Don't clear token as it might be valid, just network issue
+      _stateNotifier.setUnknown();
     } catch (e) {
-      _stateNotifier.setUnauthenticated();
+      // Unexpected error - set to unauthenticated for security
+      _stateNotifier.setUnauthenticated('Authentication initialization failed');
     }
   }
 
