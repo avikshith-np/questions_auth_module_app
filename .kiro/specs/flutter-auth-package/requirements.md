@@ -22,11 +22,12 @@ This document outlines the requirements for a Flutter authentication package tha
 
 #### Acceptance Criteria
 
-1. WHEN a user provides email, username, password, and confirm_password THEN the system SHALL send a POST request to `/accounts/signup/`
-2. WHEN the registration is successful THEN the system SHALL return a success response
-3. WHEN the registration fails THEN the system SHALL return appropriate error messages
+1. WHEN a user provides email, display_name, password, and confirm_password THEN the system SHALL send a POST request to `/accounts/register/`
+2. WHEN the registration is successful THEN the system SHALL return a success response with verification details
+3. WHEN the registration fails due to existing email THEN the system SHALL return field-specific error messages
 4. WHEN passwords don't match THEN the system SHALL validate and return an error before making the API call
 5. WHEN invalid email format is provided THEN the system SHALL validate and return an error
+6. WHEN registration is successful THEN the system SHALL provide verification token expiration information
 
 ### Requirement 3
 
@@ -36,19 +37,23 @@ This document outlines the requirements for a Flutter authentication package tha
 
 1. WHEN a user provides email and password THEN the system SHALL send a POST request to `/accounts/login/`
 2. WHEN login is successful THEN the system SHALL store the authentication token securely
-3. WHEN login fails THEN the system SHALL return appropriate error messages
-4. WHEN the token is received THEN the system SHALL make it available for subsequent API calls
+3. WHEN login is successful THEN the system SHALL store user profile information including roles and onboarding status
+4. WHEN login fails THEN the system SHALL return appropriate error messages
+5. WHEN the token is received THEN the system SHALL make it available for subsequent API calls
+6. WHEN login is successful THEN the system SHALL provide redirect information for navigation
 
 ### Requirement 4
 
-**User Story:** As an app user, I want to view my profile information, so that I can see my account details.
+**User Story:** As an app user, I want to view my profile information, so that I can see my account details and application status.
 
 #### Acceptance Criteria
 
 1. WHEN a user requests profile information THEN the system SHALL send a GET request to `/accounts/me/` with Authorization header
-2. WHEN the user is authenticated THEN the system SHALL return the user profile data
+2. WHEN the user is authenticated THEN the system SHALL return comprehensive user profile data including roles, profile completion status, and onboarding information
 3. WHEN the user is not authenticated THEN the system SHALL return an authentication error
 4. WHEN the token is expired THEN the system SHALL handle the error appropriately
+5. WHEN profile data is received THEN the system SHALL provide access to user roles, available roles, and profile completion status
+6. WHEN profile data is received THEN the system SHALL provide onboarding status and redirect information
 
 ### Requirement 5
 
@@ -84,6 +89,18 @@ This document outlines the requirements for a Flutter authentication package tha
 4. WHEN timeout occurs THEN the system SHALL return appropriate timeout error messages
 
 ### Requirement 8
+
+**User Story:** As a Flutter developer, I want access to user role and profile information, so that I can customize the app experience based on user status.
+
+#### Acceptance Criteria
+
+1. WHEN a user is authenticated THEN the system SHALL provide access to user roles and permissions
+2. WHEN user profile data is available THEN the system SHALL expose profile completion status for different roles
+3. WHEN user profile data is available THEN the system SHALL provide onboarding completion status
+4. WHEN user profile data is available THEN the system SHALL provide app access level information
+5. WHEN user profile data changes THEN the system SHALL update the available information accordingly
+
+### Requirement 9
 
 **User Story:** As a Flutter developer, I want the package to be easily testable, so that I can write unit tests for my authentication logic.
 
