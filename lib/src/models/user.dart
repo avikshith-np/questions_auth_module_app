@@ -1,30 +1,34 @@
 /// User model for authentication package
 class User {
-  final String id;
   final String email;
-  final String username;
-  final DateTime? createdAt;
-  final DateTime? updatedAt;
+  final String displayName;
+  final bool isActive;
+  final bool emailVerified;
+  final bool isVerified;
+  final bool isNew;
+  final DateTime? dateJoined;
 
   const User({
-    required this.id,
     required this.email,
-    required this.username,
-    this.createdAt,
-    this.updatedAt,
+    required this.displayName,
+    this.isActive = true,
+    this.emailVerified = false,
+    this.isVerified = false,
+    this.isNew = false,
+    this.dateJoined,
   });
 
   /// Creates a User instance from JSON data
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
-      id: json['id']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
-      username: json['username']?.toString() ?? '',
-      createdAt: json['created_at'] != null 
-          ? DateTime.tryParse(json['created_at'].toString())
-          : null,
-      updatedAt: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'].toString())
+      displayName: json['display_name']?.toString() ?? '',
+      isActive: json['is_active'] as bool? ?? true,
+      emailVerified: json['email_verified'] as bool? ?? false,
+      isVerified: json['is_verified'] as bool? ?? false,
+      isNew: json['is_new'] as bool? ?? false,
+      dateJoined: json['date_joined'] != null 
+          ? DateTime.tryParse(json['date_joined'].toString())
           : null,
     );
   }
@@ -32,11 +36,13 @@ class User {
   /// Converts User instance to JSON
   Map<String, dynamic> toJson() {
     return {
-      'id': id,
       'email': email,
-      'username': username,
-      'created_at': createdAt?.toIso8601String(),
-      'updated_at': updatedAt?.toIso8601String(),
+      'display_name': displayName,
+      'is_active': isActive,
+      'email_verified': emailVerified,
+      'is_verified': isVerified,
+      'is_new': isNew,
+      if (dateJoined != null) 'date_joined': dateJoined!.toIso8601String(),
     };
   }
 
@@ -44,20 +50,16 @@ class User {
   List<String> validate() {
     final errors = <String>[];
 
-    if (id.isEmpty) {
-      errors.add('User ID cannot be empty');
-    }
-
     if (email.isEmpty) {
       errors.add('Email cannot be empty');
     } else if (!_isValidEmail(email)) {
       errors.add('Invalid email format');
     }
 
-    if (username.isEmpty) {
-      errors.add('Username cannot be empty');
-    } else if (username.length < 3) {
-      errors.add('Username must be at least 3 characters long');
+    if (displayName.isEmpty) {
+      errors.add('Display name cannot be empty');
+    } else if (displayName.length < 2) {
+      errors.add('Display name must be at least 2 characters long');
     }
 
     return errors;
@@ -73,18 +75,22 @@ class User {
 
   /// Creates a copy of this User with updated fields
   User copyWith({
-    String? id,
     String? email,
-    String? username,
-    DateTime? createdAt,
-    DateTime? updatedAt,
+    String? displayName,
+    bool? isActive,
+    bool? emailVerified,
+    bool? isVerified,
+    bool? isNew,
+    DateTime? dateJoined,
   }) {
     return User(
-      id: id ?? this.id,
       email: email ?? this.email,
-      username: username ?? this.username,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
+      displayName: displayName ?? this.displayName,
+      isActive: isActive ?? this.isActive,
+      emailVerified: emailVerified ?? this.emailVerified,
+      isVerified: isVerified ?? this.isVerified,
+      isNew: isNew ?? this.isNew,
+      dateJoined: dateJoined ?? this.dateJoined,
     );
   }
 
@@ -92,20 +98,22 @@ class User {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is User &&
-        other.id == id &&
         other.email == email &&
-        other.username == username &&
-        other.createdAt == createdAt &&
-        other.updatedAt == updatedAt;
+        other.displayName == displayName &&
+        other.isActive == isActive &&
+        other.emailVerified == emailVerified &&
+        other.isVerified == isVerified &&
+        other.isNew == isNew &&
+        other.dateJoined == dateJoined;
   }
 
   @override
   int get hashCode {
-    return Object.hash(id, email, username, createdAt, updatedAt);
+    return Object.hash(email, displayName, isActive, emailVerified, isVerified, isNew, dateJoined);
   }
 
   @override
   String toString() {
-    return 'User(id: $id, email: $email, username: $username, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'User(email: $email, displayName: $displayName, isActive: $isActive, emailVerified: $emailVerified, isVerified: $isVerified, isNew: $isNew, dateJoined: $dateJoined)';
   }
 }

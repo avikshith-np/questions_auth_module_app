@@ -1,25 +1,42 @@
+library;
+
 /// Authentication result models
 import 'user.dart';
+import 'auth_response.dart';
 
 /// Result model for public API responses with error handling
 class AuthResult {
   final bool success;
   final User? user;
+  final String? token;
   final String? error;
   final Map<String, List<String>>? fieldErrors;
+  final LoginResponse? loginData;
+  final SignUpResponse? signUpData;
 
   const AuthResult({
     required this.success,
     this.user,
+    this.token,
     this.error,
     this.fieldErrors,
+    this.loginData,
+    this.signUpData,
   });
 
   /// Creates a successful AuthResult
-  factory AuthResult.success({User? user}) {
+  factory AuthResult.success({
+    User? user,
+    String? token,
+    LoginResponse? loginData,
+    SignUpResponse? signUpData,
+  }) {
     return AuthResult(
       success: true,
       user: user,
+      token: token,
+      loginData: loginData,
+      signUpData: signUpData,
     );
   }
 

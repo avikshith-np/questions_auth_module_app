@@ -5,13 +5,13 @@ library;
 /// Request model for user signup
 class SignUpRequest {
   final String email;
-  final String username;
+  final String displayName;
   final String password;
   final String confirmPassword;
 
   const SignUpRequest({
     required this.email,
-    required this.username,
+    required this.displayName,
     required this.password,
     required this.confirmPassword,
   });
@@ -20,7 +20,7 @@ class SignUpRequest {
   Map<String, dynamic> toJson() {
     return {
       'email': email,
-      'username': username,
+      'display_name': displayName,
       'password': password,
       'confirm_password': confirmPassword,
     };
@@ -53,19 +53,17 @@ class SignUpRequest {
       fieldErrors['email'] = emailErrors;
     }
 
-    // Username validation
-    final usernameErrors = <String>[];
-    if (username.isEmpty) {
-      usernameErrors.add('Username is required');
-    } else if (username.length < 3) {
-      usernameErrors.add('Username must be at least 3 characters long');
-    } else if (username.length > 30) {
-      usernameErrors.add('Username must be less than 30 characters');
-    } else if (!_isValidUsername(username)) {
-      usernameErrors.add('Username can only contain letters, numbers, and underscores');
+    // Display name validation
+    final displayNameErrors = <String>[];
+    if (displayName.isEmpty) {
+      displayNameErrors.add('Display name is required');
+    } else if (displayName.length < 2) {
+      displayNameErrors.add('Display name must be at least 2 characters long');
+    } else if (displayName.length > 50) {
+      displayNameErrors.add('Display name must be less than 50 characters');
     }
-    if (usernameErrors.isNotEmpty) {
-      fieldErrors['username'] = usernameErrors;
+    if (displayNameErrors.isNotEmpty) {
+      fieldErrors['displayName'] = displayNameErrors;
     }
 
     // Password validation
@@ -110,11 +108,7 @@ class SignUpRequest {
     return emailRegex.hasMatch(email.trim());
   }
 
-  /// Validates username format
-  bool _isValidUsername(String username) {
-    final usernameRegex = RegExp(r'^[a-zA-Z0-9_]+$');
-    return usernameRegex.hasMatch(username);
-  }
+
 
   /// Validates password strength (at least one letter and one number)
   bool _hasValidPasswordStrength(String password) {
@@ -126,13 +120,13 @@ class SignUpRequest {
   /// Creates a copy of this SignUpRequest with updated fields
   SignUpRequest copyWith({
     String? email,
-    String? username,
+    String? displayName,
     String? password,
     String? confirmPassword,
   }) {
     return SignUpRequest(
       email: email ?? this.email,
-      username: username ?? this.username,
+      displayName: displayName ?? this.displayName,
       password: password ?? this.password,
       confirmPassword: confirmPassword ?? this.confirmPassword,
     );
@@ -143,19 +137,19 @@ class SignUpRequest {
     if (identical(this, other)) return true;
     return other is SignUpRequest &&
         other.email == email &&
-        other.username == username &&
+        other.displayName == displayName &&
         other.password == password &&
         other.confirmPassword == confirmPassword;
   }
 
   @override
   int get hashCode {
-    return Object.hash(email, username, password, confirmPassword);
+    return Object.hash(email, displayName, password, confirmPassword);
   }
 
   @override
   String toString() {
-    return 'SignUpRequest(email: $email, username: $username, password: [HIDDEN], confirmPassword: [HIDDEN])';
+    return 'SignUpRequest(email: $email, displayName: $displayName, password: [HIDDEN], confirmPassword: [HIDDEN])';
   }
 }
 

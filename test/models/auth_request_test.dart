@@ -7,7 +7,7 @@ void main() {
       test('should convert SignUpRequest to JSON', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -15,7 +15,7 @@ void main() {
         final json = request.toJson();
 
         expect(json['email'], 'test@example.com');
-        expect(json['username'], 'testuser');
+        expect(json['display_name'], 'Test User');
         expect(json['password'], 'password123');
         expect(json['confirm_password'], 'password123');
       });
@@ -25,7 +25,7 @@ void main() {
       test('should return empty list for valid signup request', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -38,7 +38,7 @@ void main() {
       test('should return true for isValid when request is valid', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -49,7 +49,7 @@ void main() {
       test('should return false for isValid when request is invalid', () {
         const request = SignUpRequest(
           email: 'invalid-email',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -60,7 +60,7 @@ void main() {
       test('should return error for empty email', () {
         const request = SignUpRequest(
           email: '',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -73,7 +73,7 @@ void main() {
       test('should return error for invalid email format', () {
         const request = SignUpRequest(
           email: 'invalid-email',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -83,62 +83,49 @@ void main() {
         expect(errors, contains('Please enter a valid email address'));
       });
 
-      test('should return error for empty username', () {
+      test('should return error for empty display name', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: '',
+          displayName: '',
           password: 'password123',
           confirmPassword: 'password123',
         );
 
         final errors = request.validate();
 
-        expect(errors, contains('Username is required'));
+        expect(errors, contains('Display name is required'));
       });
 
-      test('should return error for short username', () {
+      test('should return error for short display name', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'ab',
+          displayName: 'A',
           password: 'password123',
           confirmPassword: 'password123',
         );
 
         final errors = request.validate();
 
-        expect(errors, contains('Username must be at least 3 characters long'));
+        expect(errors, contains('Display name must be at least 2 characters long'));
       });
 
-      test('should return error for long username', () {
+      test('should return error for long display name', () {
         final request = SignUpRequest(
           email: 'test@example.com',
-          username: 'a' * 31, // 31 characters
+          displayName: 'A' * 51, // 51 characters
           password: 'password123',
           confirmPassword: 'password123',
         );
 
         final errors = request.validate();
 
-        expect(errors, contains('Username must be less than 30 characters'));
+        expect(errors, contains('Display name must be less than 50 characters'));
       });
 
-      test('should return error for invalid username characters', () {
+      test('should accept valid display name with spaces and special characters', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'test-user!',
-          password: 'password123',
-          confirmPassword: 'password123',
-        );
-
-        final errors = request.validate();
-
-        expect(errors, contains('Username can only contain letters, numbers, and underscores'));
-      });
-
-      test('should accept valid username with underscores and numbers', () {
-        const request = SignUpRequest(
-          email: 'test@example.com',
-          username: 'test_user_123',
+          displayName: 'John Doe Jr.',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -151,7 +138,7 @@ void main() {
       test('should return error for empty password', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: '',
           confirmPassword: '',
         );
@@ -164,7 +151,7 @@ void main() {
       test('should return error for short password', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: '1234567',
           confirmPassword: '1234567',
         );
@@ -178,7 +165,7 @@ void main() {
         final longPassword = 'a' * 129; // 129 characters
         final request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: longPassword,
           confirmPassword: longPassword,
         );
@@ -191,7 +178,7 @@ void main() {
       test('should return error for password without letters', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: '12345678',
           confirmPassword: '12345678',
         );
@@ -204,7 +191,7 @@ void main() {
       test('should return error for password without numbers', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'abcdefgh',
           confirmPassword: 'abcdefgh',
         );
@@ -217,7 +204,7 @@ void main() {
       test('should return error for empty confirm password', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: '',
         );
@@ -230,7 +217,7 @@ void main() {
       test('should return error for mismatched passwords', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password456',
         );
@@ -243,7 +230,7 @@ void main() {
       test('should return multiple errors for invalid request', () {
         const request = SignUpRequest(
           email: 'invalid-email',
-          username: 'ab',
+          displayName: 'A',
           password: '123',
           confirmPassword: '456',
         );
@@ -252,7 +239,7 @@ void main() {
 
         expect(errors.length, 5); // Updated to expect 5 errors due to password strength validation
         expect(errors, contains('Please enter a valid email address'));
-        expect(errors, contains('Username must be at least 3 characters long'));
+        expect(errors, contains('Display name must be at least 2 characters long'));
         expect(errors, contains('Password must be at least 8 characters long'));
         expect(errors, contains('Password must contain at least one letter and one number'));
         expect(errors, contains('Passwords do not match'));
@@ -263,7 +250,7 @@ void main() {
       test('should return empty map for valid signup request', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -276,7 +263,7 @@ void main() {
       test('should return field-specific errors for invalid email', () {
         const request = SignUpRequest(
           email: 'invalid-email',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -284,15 +271,15 @@ void main() {
         final fieldErrors = request.validateFields();
 
         expect(fieldErrors['email'], contains('Please enter a valid email address'));
-        expect(fieldErrors['username'], isNull);
+        expect(fieldErrors['displayName'], isNull);
         expect(fieldErrors['password'], isNull);
         expect(fieldErrors['confirmPassword'], isNull);
       });
 
-      test('should return field-specific errors for invalid username', () {
+      test('should return field-specific errors for invalid display name', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'ab',
+          displayName: 'A',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -300,7 +287,7 @@ void main() {
         final fieldErrors = request.validateFields();
 
         expect(fieldErrors['email'], isNull);
-        expect(fieldErrors['username'], contains('Username must be at least 3 characters long'));
+        expect(fieldErrors['displayName'], contains('Display name must be at least 2 characters long'));
         expect(fieldErrors['password'], isNull);
         expect(fieldErrors['confirmPassword'], isNull);
       });
@@ -308,7 +295,7 @@ void main() {
       test('should return field-specific errors for invalid password', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: '123',
           confirmPassword: '123',
         );
@@ -316,7 +303,7 @@ void main() {
         final fieldErrors = request.validateFields();
 
         expect(fieldErrors['email'], isNull);
-        expect(fieldErrors['username'], isNull);
+        expect(fieldErrors['displayName'], isNull);
         expect(fieldErrors['password'], isNotNull);
         expect(fieldErrors['password'], contains('Password must be at least 8 characters long'));
         expect(fieldErrors['confirmPassword'], isNull);
@@ -325,7 +312,7 @@ void main() {
       test('should return field-specific errors for mismatched passwords', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password456',
         );
@@ -333,7 +320,7 @@ void main() {
         final fieldErrors = request.validateFields();
 
         expect(fieldErrors['email'], isNull);
-        expect(fieldErrors['username'], isNull);
+        expect(fieldErrors['displayName'], isNull);
         expect(fieldErrors['password'], isNull);
         expect(fieldErrors['confirmPassword'], contains('Passwords do not match'));
       });
@@ -341,7 +328,7 @@ void main() {
       test('should return multiple field errors for completely invalid request', () {
         const request = SignUpRequest(
           email: 'invalid-email',
-          username: 'ab',
+          displayName: 'A',
           password: '123',
           confirmPassword: '456',
         );
@@ -349,7 +336,7 @@ void main() {
         final fieldErrors = request.validateFields();
 
         expect(fieldErrors['email'], contains('Please enter a valid email address'));
-        expect(fieldErrors['username'], contains('Username must be at least 3 characters long'));
+        expect(fieldErrors['displayName'], contains('Display name must be at least 2 characters long'));
         expect(fieldErrors['password'], isNotNull);
         expect(fieldErrors['password']!.length, greaterThan(1)); // Multiple password errors
         expect(fieldErrors['confirmPassword'], contains('Passwords do not match'));
@@ -358,7 +345,7 @@ void main() {
       test('should handle email with whitespace', () {
         const request = SignUpRequest(
           email: '  test@example.com  ',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -371,7 +358,7 @@ void main() {
       test('should validate complex email formats', () {
         const request = SignUpRequest(
           email: 'user.name+tag@example-domain.co.uk',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -386,18 +373,18 @@ void main() {
       test('should create copy with updated fields', () {
         const original = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
 
         final updated = original.copyWith(
           email: 'newemail@example.com',
-          username: 'newuser',
+          displayName: 'New User',
         );
 
         expect(updated.email, 'newemail@example.com');
-        expect(updated.username, 'newuser');
+        expect(updated.displayName, 'New User');
         expect(updated.password, 'password123');
         expect(updated.confirmPassword, 'password123');
       });
@@ -405,7 +392,7 @@ void main() {
       test('should keep original values when no updates provided', () {
         const original = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -413,7 +400,7 @@ void main() {
         final copy = original.copyWith();
 
         expect(copy.email, original.email);
-        expect(copy.username, original.username);
+        expect(copy.displayName, original.displayName);
         expect(copy.password, original.password);
         expect(copy.confirmPassword, original.confirmPassword);
       });
@@ -423,14 +410,14 @@ void main() {
       test('should be equal when all fields match', () {
         const request1 = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
 
         const request2 = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -442,14 +429,14 @@ void main() {
       test('should not be equal when fields differ', () {
         const request1 = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
 
         const request2 = SignUpRequest(
           email: 'different@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -462,7 +449,7 @@ void main() {
       test('should hide password in string representation', () {
         const request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -471,7 +458,7 @@ void main() {
 
         expect(string, contains('SignUpRequest('));
         expect(string, contains('email: test@example.com'));
-        expect(string, contains('username: testuser'));
+        expect(string, contains('displayName: Test User'));
         expect(string, contains('password: [HIDDEN]'));
         expect(string, contains('confirmPassword: [HIDDEN]'));
         expect(string, isNot(contains('password123')));
