@@ -3,11 +3,13 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i3;
+import 'dart:async' as _i4;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:question_auth/src/core/token_manager.dart' as _i4;
-import 'package:question_auth/src/services/api_client.dart' as _i2;
+import 'package:question_auth/src/core/token_manager.dart' as _i6;
+import 'package:question_auth/src/models/auth_request.dart' as _i5;
+import 'package:question_auth/src/models/auth_response.dart' as _i2;
+import 'package:question_auth/src/services/api_client.dart' as _i3;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -23,36 +25,59 @@ import 'package:question_auth/src/services/api_client.dart' as _i2;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 
+class _FakeSignUpResponse_0 extends _i1.SmartFake
+    implements _i2.SignUpResponse {
+  _FakeSignUpResponse_0(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeLoginResponse_1 extends _i1.SmartFake implements _i2.LoginResponse {
+  _FakeLoginResponse_1(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeUserProfileResponse_2 extends _i1.SmartFake
+    implements _i2.UserProfileResponse {
+  _FakeUserProfileResponse_2(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeLogoutResponse_3 extends _i1.SmartFake
+    implements _i2.LogoutResponse {
+  _FakeLogoutResponse_3(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
 /// A class which mocks [ApiClient].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockApiClient extends _i1.Mock implements _i2.ApiClient {
+class MockApiClient extends _i1.Mock implements _i3.ApiClient {
   MockApiClient() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i3.Future<Map<String, dynamic>> post(
+  _i4.Future<Map<String, dynamic>> post(
     String? endpoint,
     Map<String, dynamic>? data,
   ) =>
       (super.noSuchMethod(
             Invocation.method(#post, [endpoint, data]),
-            returnValue: _i3.Future<Map<String, dynamic>>.value(
+            returnValue: _i4.Future<Map<String, dynamic>>.value(
               <String, dynamic>{},
             ),
           )
-          as _i3.Future<Map<String, dynamic>>);
+          as _i4.Future<Map<String, dynamic>>);
 
   @override
-  _i3.Future<Map<String, dynamic>> get(String? endpoint) =>
+  _i4.Future<Map<String, dynamic>> get(String? endpoint) =>
       (super.noSuchMethod(
             Invocation.method(#get, [endpoint]),
-            returnValue: _i3.Future<Map<String, dynamic>>.value(
+            returnValue: _i4.Future<Map<String, dynamic>>.value(
               <String, dynamic>{},
             ),
           )
-          as _i3.Future<Map<String, dynamic>>);
+          as _i4.Future<Map<String, dynamic>>);
 
   @override
   void setAuthToken(String? token) => super.noSuchMethod(
@@ -65,63 +90,109 @@ class MockApiClient extends _i1.Mock implements _i2.ApiClient {
     Invocation.method(#clearAuthToken, []),
     returnValueForMissingStub: null,
   );
+
+  @override
+  _i4.Future<_i2.SignUpResponse> register(_i5.SignUpRequest? request) =>
+      (super.noSuchMethod(
+            Invocation.method(#register, [request]),
+            returnValue: _i4.Future<_i2.SignUpResponse>.value(
+              _FakeSignUpResponse_0(
+                this,
+                Invocation.method(#register, [request]),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.SignUpResponse>);
+
+  @override
+  _i4.Future<_i2.LoginResponse> login(_i5.LoginRequest? request) =>
+      (super.noSuchMethod(
+            Invocation.method(#login, [request]),
+            returnValue: _i4.Future<_i2.LoginResponse>.value(
+              _FakeLoginResponse_1(this, Invocation.method(#login, [request])),
+            ),
+          )
+          as _i4.Future<_i2.LoginResponse>);
+
+  @override
+  _i4.Future<_i2.UserProfileResponse> getCurrentUser() =>
+      (super.noSuchMethod(
+            Invocation.method(#getCurrentUser, []),
+            returnValue: _i4.Future<_i2.UserProfileResponse>.value(
+              _FakeUserProfileResponse_2(
+                this,
+                Invocation.method(#getCurrentUser, []),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.UserProfileResponse>);
+
+  @override
+  _i4.Future<_i2.LogoutResponse> logout() =>
+      (super.noSuchMethod(
+            Invocation.method(#logout, []),
+            returnValue: _i4.Future<_i2.LogoutResponse>.value(
+              _FakeLogoutResponse_3(this, Invocation.method(#logout, [])),
+            ),
+          )
+          as _i4.Future<_i2.LogoutResponse>);
 }
 
 /// A class which mocks [TokenManager].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockTokenManager extends _i1.Mock implements _i4.TokenManager {
+class MockTokenManager extends _i1.Mock implements _i6.TokenManager {
   MockTokenManager() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i3.Future<void> saveToken(String? token) =>
+  _i4.Future<void> saveToken(String? token) =>
       (super.noSuchMethod(
             Invocation.method(#saveToken, [token]),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
           )
-          as _i3.Future<void>);
+          as _i4.Future<void>);
 
   @override
-  _i3.Future<String?> getToken() =>
+  _i4.Future<String?> getToken() =>
       (super.noSuchMethod(
             Invocation.method(#getToken, []),
-            returnValue: _i3.Future<String?>.value(),
+            returnValue: _i4.Future<String?>.value(),
           )
-          as _i3.Future<String?>);
+          as _i4.Future<String?>);
 
   @override
-  _i3.Future<void> clearToken() =>
+  _i4.Future<void> clearToken() =>
       (super.noSuchMethod(
             Invocation.method(#clearToken, []),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
           )
-          as _i3.Future<void>);
+          as _i4.Future<void>);
 
   @override
-  _i3.Future<bool> hasValidToken() =>
+  _i4.Future<bool> hasValidToken() =>
       (super.noSuchMethod(
             Invocation.method(#hasValidToken, []),
-            returnValue: _i3.Future<bool>.value(false),
+            returnValue: _i4.Future<bool>.value(false),
           )
-          as _i3.Future<bool>);
+          as _i4.Future<bool>);
 
   @override
-  _i3.Future<bool> isTokenExpired() =>
+  _i4.Future<bool> isTokenExpired() =>
       (super.noSuchMethod(
             Invocation.method(#isTokenExpired, []),
-            returnValue: _i3.Future<bool>.value(false),
+            returnValue: _i4.Future<bool>.value(false),
           )
-          as _i3.Future<bool>);
+          as _i4.Future<bool>);
 
   @override
-  _i3.Future<DateTime?> getTokenExpiration() =>
+  _i4.Future<DateTime?> getTokenExpiration() =>
       (super.noSuchMethod(
             Invocation.method(#getTokenExpiration, []),
-            returnValue: _i3.Future<DateTime?>.value(),
+            returnValue: _i4.Future<DateTime?>.value(),
           )
-          as _i3.Future<DateTime?>);
+          as _i4.Future<DateTime?>);
 }

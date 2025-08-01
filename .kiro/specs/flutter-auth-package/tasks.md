@@ -46,8 +46,8 @@
     - Write unit tests for field-specific error scenarios
     - _Requirements: 2.3, 7.2_
 
-- [ ] 4. Update authentication repository for new API
-  - [ ] 4.1 Update AuthRepository interface and implementation
+- [x] 4. Update authentication repository for new API
+  - [x] 4.1 Update AuthRepository interface and implementation
     - Update AuthRepository methods to return new response models
     - Modify AuthRepositoryImpl to handle LoginResponse and UserProfileResponse
     - Update token management to work with new API token format

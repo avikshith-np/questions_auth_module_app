@@ -1,5 +1,6 @@
 import '../models/auth_request.dart';
 import '../models/auth_response.dart';
+import '../models/auth_result.dart';
 import '../models/user.dart';
 import '../services/api_client.dart';
 import '../core/token_manager.dart';
@@ -11,29 +12,29 @@ abstract class AuthRepository {
   /// 
   /// [request] - The signup request containing user registration data
   /// 
-  /// Returns [AuthResponse] with registration result
+  /// Returns [AuthResult] with registration result and signup data
   /// Throws [ValidationException] for validation errors
   /// Throws [ApiException] for API-related errors
   /// Throws [NetworkException] for network-related errors
-  Future<AuthResponse> signUp(SignUpRequest request);
+  Future<AuthResult> signUp(SignUpRequest request);
   
   /// Authenticates a user with email and password
   /// 
   /// [request] - The login request containing credentials
   /// 
-  /// Returns [AuthResponse] with authentication result and token
+  /// Returns [AuthResult] with authentication result, token, and rich user profile data
   /// Throws [ValidationException] for validation errors
   /// Throws [ApiException] for API-related errors
   /// Throws [NetworkException] for network-related errors
-  Future<AuthResponse> login(LoginRequest request);
+  Future<AuthResult> login(LoginRequest request);
   
   /// Retrieves the current authenticated user's profile
   /// 
-  /// Returns [User] profile data
+  /// Returns [UserProfileResponse] with comprehensive user profile data
   /// Throws [ApiException] for API-related errors
   /// Throws [NetworkException] for network-related errors
   /// Throws [TokenException] if no valid token is available
-  Future<User> getCurrentUser();
+  Future<UserProfileResponse> getCurrentUser();
   
   /// Logs out the current user
   /// 
@@ -74,7 +75,7 @@ class AuthRepositoryImpl implements AuthRepository {
        _tokenManager = tokenManager;
 
   @override
-  Future<AuthResponse> signUp(SignUpRequest request) async {
+  Future<AuthResult> signUp(SignUpRequest request) async {
     try {
       // Validate request before making API call
       final validationErrors = request.validate();
@@ -85,29 +86,33 @@ class AuthRepositoryImpl implements AuthRepository {
         throw ValidationException('Validation failed', fieldErrors);
       }
       
-      // Make API call
-      final response = await _apiClient.post('accounts/signup/', request.toJson());
+      // Make API call using the new register endpoint
+      final signUpResponse = await _apiClient.register(request);
       
-      // Parse response
-      final authResponse = AuthResponse.fromJson(response);
-      
-      // Store token if login was successful
-      if (authResponse.success && authResponse.token != null) {
-        await _tokenManager.saveToken(authResponse.token!);
-        _apiClient.setAuthToken(authResponse.token!);
-      }
-      
-      return authResponse;
+      // Return successful AuthResult with signup data
+      return AuthResult.success(
+        signUpData: signUpResponse,
+      );
     } catch (e) {
-      if (e is AuthException) {
-        rethrow;
+      if (e is ValidationException) {
+        return AuthResult.failure(
+          error: e.message,
+          fieldErrors: e.fieldErrors,
+        );
+      } else if (e is ApiException) {
+        return AuthResult.failure(error: e.message);
+      } else if (e is NetworkException) {
+        return AuthResult.failure(error: e.message);
+      } else {
+        return AuthResult.failure(
+          error: 'Unexpected error during signup: ${e.toString()}',
+        );
       }
-      throw NetworkException('Unexpected error during signup: ${e.toString()}');
     }
   }
 
   @override
-  Future<AuthResponse> login(LoginRequest request) async {
+  Future<AuthResult> login(LoginRequest request) async {
     try {
       // Validate request before making API call
       final validationErrors = request.validate();
@@ -118,29 +123,39 @@ class AuthRepositoryImpl implements AuthRepository {
         throw ValidationException('Validation failed', fieldErrors);
       }
       
-      // Make API call
-      final response = await _apiClient.post('accounts/login/', request.toJson());
+      // Make API call using the new login endpoint
+      final loginResponse = await _apiClient.login(request);
       
-      // Parse response
-      final authResponse = AuthResponse.fromJson(response);
+      // Store token and set it in API client
+      await _tokenManager.saveToken(loginResponse.token);
+      _apiClient.setAuthToken(loginResponse.token);
       
-      // Store token if login was successful
-      if (authResponse.success && authResponse.token != null) {
-        await _tokenManager.saveToken(authResponse.token!);
-        _apiClient.setAuthToken(authResponse.token!);
-      }
-      
-      return authResponse;
+      // Return successful AuthResult with rich user profile data
+      return AuthResult.success(
+        user: loginResponse.user,
+        token: loginResponse.token,
+        loginData: loginResponse,
+      );
     } catch (e) {
-      if (e is AuthException) {
-        rethrow;
+      if (e is ValidationException) {
+        return AuthResult.failure(
+          error: e.message,
+          fieldErrors: e.fieldErrors,
+        );
+      } else if (e is ApiException) {
+        return AuthResult.failure(error: e.message);
+      } else if (e is NetworkException) {
+        return AuthResult.failure(error: e.message);
+      } else {
+        return AuthResult.failure(
+          error: 'Unexpected error during login: ${e.toString()}',
+        );
       }
-      throw NetworkException('Unexpected error during login: ${e.toString()}');
     }
   }
 
   @override
-  Future<User> getCurrentUser() async {
+  Future<UserProfileResponse> getCurrentUser() async {
     try {
       // Check if we have a valid token
       final token = await _tokenManager.getToken();
@@ -151,11 +166,10 @@ class AuthRepositoryImpl implements AuthRepository {
       // Set the token in API client
       _apiClient.setAuthToken(token);
       
-      // Make API call to get user profile
-      final response = await _apiClient.get('accounts/me/');
+      // Make API call to get comprehensive user profile
+      final userProfileResponse = await _apiClient.getCurrentUser();
       
-      // Parse and return user data
-      return User.fromJson(response);
+      return userProfileResponse;
     } catch (e) {
       if (e is AuthException) {
         rethrow;
@@ -170,11 +184,11 @@ class AuthRepositoryImpl implements AuthRepository {
       // Get current token
       final token = await _tokenManager.getToken();
       
-      // If we have a token, try to logout from server
+      // If we have a token, try to logout from server using the new logout endpoint
       if (token != null) {
         try {
           _apiClient.setAuthToken(token);
-          await _apiClient.post('logout/', {});
+          await _apiClient.logout();
         } catch (e) {
           // Even if server logout fails, we still clear local token for security
           // Log the error but don't throw it

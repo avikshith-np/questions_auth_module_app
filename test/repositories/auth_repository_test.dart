@@ -6,6 +6,7 @@ import 'package:question_auth/src/services/api_client.dart';
 import 'package:question_auth/src/core/token_manager.dart';
 import 'package:question_auth/src/models/auth_request.dart';
 import 'package:question_auth/src/models/auth_response.dart';
+import 'package:question_auth/src/models/auth_result.dart';
 import 'package:question_auth/src/models/user.dart';
 import 'package:question_auth/src/core/exceptions.dart';
 
@@ -28,163 +29,161 @@ void main() {
     });
 
     group('signUp', () {
-      test('should successfully register user and store token', () async {
+      test('should successfully register user with signup data', () async {
         // Arrange
         final request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
         
-        final apiResponse = {
-          'success': true,
-          'token': 'auth-token-123',
-          'user': {
-            'id': '1',
-            'email': 'test@example.com',
-            'username': 'testuser',
-            'created_at': '2023-01-01T00:00:00Z',
-          },
-          'message': 'Registration successful',
-        };
+        final signUpResponse = SignUpResponse(
+          detail: 'Registration successful! Please check your email to verify your account.',
+          data: SignUpData(
+            email: 'test@example.com',
+            verificationTokenExpiresIn: '10 minutes',
+          ),
+        );
         
-        when(mockApiClient.post('accounts/signup/', any))
-            .thenAnswer((_) async => apiResponse);
-        when(mockTokenManager.saveToken('auth-token-123'))
-            .thenAnswer((_) async {});
+        when(mockApiClient.register(any))
+            .thenAnswer((_) async => signUpResponse);
 
         // Act
         final result = await authRepository.signUp(request);
 
         // Assert
         expect(result.success, isTrue);
-        expect(result.token, equals('auth-token-123'));
-        expect(result.user?.email, equals('test@example.com'));
-        expect(result.message, equals('Registration successful'));
+        expect(result.signUpData, equals(signUpResponse));
+        expect(result.signUpData?.detail, equals('Registration successful! Please check your email to verify your account.'));
+        expect(result.signUpData?.data?.email, equals('test@example.com'));
         
-        verify(mockApiClient.post('accounts/signup/', request.toJson())).called(1);
-        verify(mockTokenManager.saveToken('auth-token-123')).called(1);
-        verify(mockApiClient.setAuthToken('auth-token-123')).called(1);
+        verify(mockApiClient.register(request)).called(1);
+        verifyNever(mockTokenManager.saveToken(any));
+        verifyNever(mockApiClient.setAuthToken(any));
       });
 
-      test('should throw ValidationException for invalid request', () async {
+      test('should return failure result for invalid request', () async {
         // Arrange
         final request = SignUpRequest(
           email: 'invalid-email',
-          username: '',
+          displayName: '',
           password: 'short',
           confirmPassword: 'different',
         );
 
-        // Act & Assert
-        expect(
-          () => authRepository.signUp(request),
-          throwsA(isA<ValidationException>()
-              .having((e) => e.fieldErrors['general'], 'general errors', isNotEmpty)),
-        );
+        // Act
+        final result = await authRepository.signUp(request);
+
+        // Assert
+        expect(result.success, isFalse);
+        expect(result.hasFieldErrors, isTrue);
+        expect(result.fieldErrors?['general'], isNotEmpty);
         
-        verifyNever(mockApiClient.post(any, any));
+        verifyNever(mockApiClient.register(any));
         verifyNever(mockTokenManager.saveToken(any));
       });
 
-      test('should handle API error response', () async {
+      test('should return failure result for API error response', () async {
         // Arrange
         final request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
         
-        when(mockApiClient.post('accounts/signup/', any))
+        when(mockApiClient.register(any))
             .thenThrow(ApiException('Email already exists', 400, 'EMAIL_EXISTS'));
-
-        // Act & Assert
-        expect(
-          () => authRepository.signUp(request),
-          throwsA(isA<ApiException>()
-              .having((e) => e.message, 'message', contains('Email already exists'))
-              .having((e) => e.statusCode, 'statusCode', equals(400))),
-        );
-        
-        verify(mockApiClient.post('accounts/signup/', request.toJson())).called(1);
-        verifyNever(mockTokenManager.saveToken(any));
-      });
-
-      test('should handle network error', () async {
-        // Arrange
-        final request = SignUpRequest(
-          email: 'test@example.com',
-          username: 'testuser',
-          password: 'password123',
-          confirmPassword: 'password123',
-        );
-        
-        when(mockApiClient.post('accounts/signup/', any))
-            .thenThrow(NetworkException('Connection failed'));
-
-        // Act & Assert
-        expect(
-          () => authRepository.signUp(request),
-          throwsA(isA<NetworkException>()
-              .having((e) => e.message, 'message', contains('Connection failed'))),
-        );
-      });
-
-      test('should handle successful response without token', () async {
-        // Arrange
-        final request = SignUpRequest(
-          email: 'test@example.com',
-          username: 'testuser',
-          password: 'password123',
-          confirmPassword: 'password123',
-        );
-        
-        final apiResponse = {
-          'success': true,
-          'message': 'Registration successful, please verify email',
-        };
-        
-        when(mockApiClient.post('accounts/signup/', any))
-            .thenAnswer((_) async => apiResponse);
 
         // Act
         final result = await authRepository.signUp(request);
 
         // Assert
-        expect(result.success, isTrue);
-        expect(result.token, isNull);
-        expect(result.message, equals('Registration successful, please verify email'));
+        expect(result.success, isFalse);
+        expect(result.error, equals('Email already exists'));
         
-        verify(mockApiClient.post('accounts/signup/', request.toJson())).called(1);
+        verify(mockApiClient.register(request)).called(1);
         verifyNever(mockTokenManager.saveToken(any));
-        verifyNever(mockApiClient.setAuthToken(any));
+      });
+
+      test('should return failure result for network error', () async {
+        // Arrange
+        final request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: 'Test User',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+        
+        when(mockApiClient.register(any))
+            .thenThrow(NetworkException('Connection failed'));
+
+        // Act
+        final result = await authRepository.signUp(request);
+
+        // Assert
+        expect(result.success, isFalse);
+        expect(result.error, equals('Connection failed'));
+      });
+
+      test('should handle validation exception with field errors', () async {
+        // Arrange
+        final request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: 'Test User',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+        
+        final fieldErrors = <String, List<String>>{
+          'email': ['user with this email already exists.']
+        };
+        
+        when(mockApiClient.register(any))
+            .thenThrow(ValidationException('Validation failed', fieldErrors));
+
+        // Act
+        final result = await authRepository.signUp(request);
+
+        // Assert
+        expect(result.success, isFalse);
+        expect(result.error, equals('Validation failed'));
+        expect(result.fieldErrors, equals(fieldErrors));
+        
+        verify(mockApiClient.register(request)).called(1);
+        verifyNever(mockTokenManager.saveToken(any));
       });
     });
 
     group('login', () {
-      test('should successfully login user and store token', () async {
+      test('should successfully login user and store token with rich profile data', () async {
         // Arrange
         final request = LoginRequest(
           email: 'test@example.com',
           password: 'password123',
         );
         
-        final apiResponse = {
-          'success': true,
-          'token': 'auth-token-456',
-          'user': {
-            'id': '1',
-            'email': 'test@example.com',
-            'username': 'testuser',
-            'created_at': '2023-01-01T00:00:00Z',
-          },
-          'message': 'Login successful',
-        };
+        final user = User(
+          email: 'test@example.com',
+          displayName: 'Test User',
+          isVerified: true,
+          isNew: false,
+        );
         
-        when(mockApiClient.post('accounts/login/', any))
-            .thenAnswer((_) async => apiResponse);
+        final loginResponse = LoginResponse(
+          token: 'auth-token-456',
+          user: user,
+          roles: ['Creator'],
+          profileComplete: {'student': false, 'creator': true},
+          onboardingComplete: true,
+          incompleteRoles: [],
+          appAccess: 'full',
+          redirectTo: '/dashboard',
+        );
+        
+        when(mockApiClient.login(any))
+            .thenAnswer((_) async => loginResponse);
         when(mockTokenManager.saveToken('auth-token-456'))
             .thenAnswer((_) async {});
 
@@ -195,81 +194,110 @@ void main() {
         expect(result.success, isTrue);
         expect(result.token, equals('auth-token-456'));
         expect(result.user?.email, equals('test@example.com'));
-        expect(result.message, equals('Login successful'));
+        expect(result.loginData, equals(loginResponse));
+        expect(result.userRoles, equals(['Creator']));
+        expect(result.profileComplete, equals({'student': false, 'creator': true}));
+        expect(result.onboardingComplete, isTrue);
+        expect(result.appAccess, equals('full'));
+        expect(result.redirectTo, equals('/dashboard'));
         
-        verify(mockApiClient.post('accounts/login/', request.toJson())).called(1);
+        verify(mockApiClient.login(request)).called(1);
         verify(mockTokenManager.saveToken('auth-token-456')).called(1);
         verify(mockApiClient.setAuthToken('auth-token-456')).called(1);
       });
 
-      test('should throw ValidationException for invalid credentials', () async {
+      test('should return failure result for invalid credentials', () async {
         // Arrange
         final request = LoginRequest(
           email: 'invalid-email',
           password: '',
         );
 
-        // Act & Assert
-        expect(
-          () => authRepository.login(request),
-          throwsA(isA<ValidationException>()
-              .having((e) => e.fieldErrors['general'], 'general errors', isNotEmpty)),
-        );
+        // Act
+        final result = await authRepository.login(request);
+
+        // Assert
+        expect(result.success, isFalse);
+        expect(result.hasFieldErrors, isTrue);
+        expect(result.fieldErrors?['general'], isNotEmpty);
         
-        verifyNever(mockApiClient.post(any, any));
+        verifyNever(mockApiClient.login(any));
         verifyNever(mockTokenManager.saveToken(any));
       });
 
-      test('should handle login failure', () async {
+      test('should return failure result for login failure', () async {
         // Arrange
         final request = LoginRequest(
           email: 'test@example.com',
           password: 'wrongpassword',
         );
         
-        when(mockApiClient.post('accounts/login/', any))
+        when(mockApiClient.login(any))
             .thenThrow(ApiException('Invalid credentials', 401, 'INVALID_CREDENTIALS'));
 
-        // Act & Assert
-        expect(
-          () => authRepository.login(request),
-          throwsA(isA<ApiException>()
-              .having((e) => e.message, 'message', contains('Invalid credentials'))
-              .having((e) => e.statusCode, 'statusCode', equals(401))),
-        );
+        // Act
+        final result = await authRepository.login(request);
+
+        // Assert
+        expect(result.success, isFalse);
+        expect(result.error, equals('Invalid credentials'));
         
-        verify(mockApiClient.post('accounts/login/', request.toJson())).called(1);
+        verify(mockApiClient.login(request)).called(1);
         verifyNever(mockTokenManager.saveToken(any));
       });
     });
 
     group('getCurrentUser', () {
-      test('should successfully get current user profile', () async {
+      test('should successfully get comprehensive user profile', () async {
         // Arrange
         const token = 'valid-token-123';
-        final userResponse = {
-          'id': '1',
-          'email': 'test@example.com',
-          'username': 'testuser',
-          'created_at': '2023-01-01T00:00:00Z',
-        };
+        final user = User(
+          email: 'test@example.com',
+          displayName: 'Test User',
+          isActive: true,
+          emailVerified: true,
+          dateJoined: DateTime.parse('2023-01-01T00:00:00Z'),
+        );
+        
+        final userProfileResponse = UserProfileResponse(
+          user: user,
+          isNew: false,
+          mode: 'student',
+          roles: ['student', 'creator'],
+          availableRoles: ['creator'],
+          removableRoles: [],
+          profileComplete: {'student': true, 'creator': false},
+          onboardingComplete: true,
+          incompleteRoles: ['creator'],
+          appAccess: 'full',
+          viewType: 'student-complete-student-only',
+          redirectTo: '/onboarding/profile',
+        );
         
         when(mockTokenManager.getToken())
             .thenAnswer((_) async => token);
-        when(mockApiClient.get('accounts/me/'))
-            .thenAnswer((_) async => userResponse);
+        when(mockApiClient.getCurrentUser())
+            .thenAnswer((_) async => userProfileResponse);
 
         // Act
         final result = await authRepository.getCurrentUser();
 
         // Assert
-        expect(result.id, equals('1'));
-        expect(result.email, equals('test@example.com'));
-        expect(result.username, equals('testuser'));
+        expect(result.user.email, equals('test@example.com'));
+        expect(result.user.displayName, equals('Test User'));
+        expect(result.isNew, isFalse);
+        expect(result.mode, equals('student'));
+        expect(result.roles, equals(['student', 'creator']));
+        expect(result.availableRoles, equals(['creator']));
+        expect(result.profileComplete, equals({'student': true, 'creator': false}));
+        expect(result.onboardingComplete, isTrue);
+        expect(result.appAccess, equals('full'));
+        expect(result.viewType, equals('student-complete-student-only'));
+        expect(result.redirectTo, equals('/onboarding/profile'));
         
         verify(mockTokenManager.getToken()).called(1);
         verify(mockApiClient.setAuthToken(token)).called(1);
-        verify(mockApiClient.get('accounts/me/')).called(1);
+        verify(mockApiClient.getCurrentUser()).called(1);
       });
 
       test('should throw TokenException when no token available', () async {
@@ -295,7 +323,7 @@ void main() {
         
         when(mockTokenManager.getToken())
             .thenAnswer((_) async => token);
-        when(mockApiClient.get('accounts/me/'))
+        when(mockApiClient.getCurrentUser())
             .thenThrow(ApiException('Token expired', 401, 'TOKEN_EXPIRED'));
 
         // Act & Assert
@@ -310,7 +338,7 @@ void main() {
         
         verify(mockTokenManager.getToken()).called(1);
         verify(mockApiClient.setAuthToken(token)).called(1);
-        verify(mockApiClient.get('accounts/me/')).called(1);
+        verify(mockApiClient.getCurrentUser()).called(1);
       });
     });
 
@@ -318,11 +346,12 @@ void main() {
       test('should successfully logout and clear token', () async {
         // Arrange
         const token = 'valid-token-123';
+        final logoutResponse = LogoutResponse(detail: 'Logged out successfully.');
         
         when(mockTokenManager.getToken())
             .thenAnswer((_) async => token);
-        when(mockApiClient.post('logout/', {}))
-            .thenAnswer((_) async => {'success': true});
+        when(mockApiClient.logout())
+            .thenAnswer((_) async => logoutResponse);
         when(mockTokenManager.clearToken())
             .thenAnswer((_) async {});
 
@@ -332,7 +361,7 @@ void main() {
         // Assert
         verify(mockTokenManager.getToken()).called(1);
         verify(mockApiClient.setAuthToken(token)).called(1);
-        verify(mockApiClient.post('logout/', {})).called(1);
+        verify(mockApiClient.logout()).called(1);
         verify(mockTokenManager.clearToken()).called(1);
         verify(mockApiClient.clearAuthToken()).called(1);
       });
@@ -361,7 +390,7 @@ void main() {
         
         when(mockTokenManager.getToken())
             .thenAnswer((_) async => token);
-        when(mockApiClient.post('logout/', {}))
+        when(mockApiClient.logout())
             .thenThrow(NetworkException('Server unavailable'));
         when(mockTokenManager.clearToken())
             .thenAnswer((_) async {});
@@ -372,7 +401,7 @@ void main() {
         // Assert
         verify(mockTokenManager.getToken()).called(1);
         verify(mockApiClient.setAuthToken(token)).called(1);
-        verify(mockApiClient.post('logout/', {})).called(1);
+        verify(mockApiClient.logout()).called(1);
         verify(mockTokenManager.clearToken()).called(1);
         verify(mockApiClient.clearAuthToken()).called(1);
       });
@@ -400,42 +429,47 @@ void main() {
     });
 
     group('error handling', () {
-      test('should wrap unexpected errors in NetworkException', () async {
+      test('should return failure result for unexpected errors', () async {
         // Arrange
         final request = SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
         
-        when(mockApiClient.post('accounts/signup/', any))
+        when(mockApiClient.register(any))
             .thenThrow(Exception('Unexpected error'));
 
-        // Act & Assert
-        expect(
-          () => authRepository.signUp(request),
-          throwsA(isA<NetworkException>()
-              .having((e) => e.message, 'message', contains('Unexpected error during signup'))),
-        );
+        // Act
+        final result = await authRepository.signUp(request);
+
+        // Assert
+        expect(result.success, isFalse);
+        expect(result.error, contains('Unexpected error during signup'));
       });
 
-      test('should rethrow AuthExceptions without wrapping', () async {
+      test('should handle AuthExceptions properly', () async {
         // Arrange
         final request = LoginRequest(
           email: 'test@example.com',
           password: 'password123',
         );
         
-        final originalException = ValidationException('Test validation error', {});
-        when(mockApiClient.post('accounts/login/', any))
-            .thenThrow(originalException);
+        final fieldErrors = <String, List<String>>{
+          'email': ['Invalid email format']
+        };
+        
+        when(mockApiClient.login(any))
+            .thenThrow(ValidationException('Test validation error', fieldErrors));
 
-        // Act & Assert
-        expect(
-          () => authRepository.login(request),
-          throwsA(same(originalException)),
-        );
+        // Act
+        final result = await authRepository.login(request);
+
+        // Assert
+        expect(result.success, isFalse);
+        expect(result.error, equals('Test validation error'));
+        expect(result.fieldErrors, equals(fieldErrors));
       });
     });
   });
