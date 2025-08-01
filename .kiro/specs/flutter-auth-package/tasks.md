@@ -89,8 +89,8 @@
     - Write unit tests for updated validation logic
     - _Requirements: 2.4, 2.5_
 
-- [ ] 9. Update test utilities for new API models
-  - [ ] 9.1 Update mock classes and test utilities
+- [x] 9. Update test utilities for new API models
+  - [x] 9.1 Update mock classes and test utilities
     - Update AuthTestUtils to create test data for new API models
     - Create helper methods for LoginResponse, UserProfileResponse, SignUpResponse
     - Update mock implementations to handle new API endpoints

@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:question_auth/question_auth.dart';
-import 'package:question_auth/src/services/api_client.dart';
 import 'auth_test_utils.dart';
 
 /// Mock implementation of AuthService for testing
@@ -13,6 +12,7 @@ class MockAuthService extends Mock implements AuthService {
       StreamController<AuthState>.broadcast();
   
   AuthState _currentState = const AuthState(status: AuthStatus.unknown);
+  LoginResponse? _loginData;
   
   @override
   Stream<AuthState> get authStateStream => _authStateController.stream;
@@ -26,14 +26,27 @@ class MockAuthService extends Mock implements AuthService {
   @override
   AuthState get currentAuthState => _currentState;
   
+  @override
+  List<String>? get userRoles => _loginData?.roles;
+  
+  @override
+  Map<String, bool>? get profileComplete => _loginData?.profileComplete;
+  
+  @override
+  bool? get onboardingComplete => _loginData?.onboardingComplete;
+  
+  @override
+  String? get appAccess => _loginData?.appAccess;
+  
   /// Helper method to simulate state changes in tests
   void simulateStateChange(AuthState newState) {
     _currentState = newState;
     _authStateController.add(newState);
   }
   
-  /// Helper method to simulate authentication
-  void simulateAuthentication(User user) {
+  /// Helper method to simulate authentication with login data
+  void simulateAuthentication(User user, {LoginResponse? loginData}) {
+    _loginData = loginData ?? AuthTestUtils.createTestLoginResponse(user: user);
     simulateStateChange(AuthState(
       status: AuthStatus.authenticated,
       user: user,
@@ -42,6 +55,7 @@ class MockAuthService extends Mock implements AuthService {
   
   /// Helper method to simulate logout
   void simulateLogout() {
+    _loginData = null;
     simulateStateChange(const AuthState(
       status: AuthStatus.unauthenticated,
     ));
@@ -56,21 +70,21 @@ class MockAuthService extends Mock implements AuthService {
 /// Mock implementation of AuthRepository for testing
 class MockAuthRepository extends Mock implements AuthRepository {
   @override
-  Future<AuthResponse> signUp(SignUpRequest request) async {
+  Future<AuthResult> signUp(SignUpRequest request) async {
     // Default successful response - can be overridden with when() in tests
-    return AuthTestUtils.createSuccessResponse();
+    return AuthTestUtils.createSignUpSuccessResult();
   }
 
   @override
-  Future<AuthResponse> login(LoginRequest request) async {
+  Future<AuthResult> login(LoginRequest request) async {
     // Default successful response - can be overridden with when() in tests
-    return AuthTestUtils.createSuccessResponse();
+    return AuthTestUtils.createLoginSuccessResult();
   }
 
   @override
-  Future<User> getCurrentUser() async {
-    // Default user response - can be overridden with when() in tests
-    return AuthTestUtils.createTestUser();
+  Future<UserProfileResponse> getCurrentUser() async {
+    // Default user profile response - can be overridden with when() in tests
+    return AuthTestUtils.createTestUserProfileResponse();
   }
 
   @override
@@ -118,6 +132,30 @@ class MockApiClient extends Mock implements ApiClient {
   @override
   void clearAuthToken() {
     // Mock implementation - behavior can be verified in tests
+  }
+
+  @override
+  Future<SignUpResponse> register(SignUpRequest request) async {
+    // Default successful response - can be overridden with when() in tests
+    return AuthTestUtils.createTestSignUpResponse();
+  }
+
+  @override
+  Future<LoginResponse> login(LoginRequest request) async {
+    // Default successful response - can be overridden with when() in tests
+    return AuthTestUtils.createTestLoginResponse();
+  }
+
+  @override
+  Future<UserProfileResponse> getCurrentUser() async {
+    // Default user profile response - can be overridden with when() in tests
+    return AuthTestUtils.createTestUserProfileResponse();
+  }
+
+  @override
+  Future<LogoutResponse> logout() async {
+    // Default logout response - can be overridden with when() in tests
+    return AuthTestUtils.createTestLogoutResponse();
   }
 }
 
@@ -275,6 +313,26 @@ class NetworkErrorMockApiClient extends Mock implements ApiClient {
 
   @override
   void clearAuthToken() {}
+
+  @override
+  Future<SignUpResponse> register(SignUpRequest request) async {
+    throw NetworkException('Network connection failed');
+  }
+
+  @override
+  Future<LoginResponse> login(LoginRequest request) async {
+    throw NetworkException('Network connection failed');
+  }
+
+  @override
+  Future<UserProfileResponse> getCurrentUser() async {
+    throw NetworkException('Network connection failed');
+  }
+
+  @override
+  Future<LogoutResponse> logout() async {
+    throw NetworkException('Network connection failed');
+  }
 }
 
 /// Mock implementation that always throws API errors
@@ -304,6 +362,26 @@ class ApiErrorMockApiClient extends Mock implements ApiClient {
 
   @override
   void clearAuthToken() {}
+
+  @override
+  Future<SignUpResponse> register(SignUpRequest request) async {
+    throw ApiException(message, statusCode, code);
+  }
+
+  @override
+  Future<LoginResponse> login(LoginRequest request) async {
+    throw ApiException(message, statusCode, code);
+  }
+
+  @override
+  Future<UserProfileResponse> getCurrentUser() async {
+    throw ApiException(message, statusCode, code);
+  }
+
+  @override
+  Future<LogoutResponse> logout() async {
+    throw ApiException(message, statusCode, code);
+  }
 }
 
 /// Mock implementation that always throws token errors
@@ -332,7 +410,7 @@ class TokenErrorMockTokenManager extends Mock implements TokenManager {
 /// Mock repository that always throws validation errors
 class ValidationErrorMockRepository extends Mock implements AuthRepository {
   @override
-  Future<AuthResponse> signUp(SignUpRequest request) async {
+  Future<AuthResult> signUp(SignUpRequest request) async {
     throw ValidationException('Validation failed', {
       'email': ['Invalid email format'],
       'password': ['Password too short'],
@@ -340,14 +418,14 @@ class ValidationErrorMockRepository extends Mock implements AuthRepository {
   }
 
   @override
-  Future<AuthResponse> login(LoginRequest request) async {
+  Future<AuthResult> login(LoginRequest request) async {
     throw ValidationException('Validation failed', {
       'email': ['Invalid email format'],
     });
   }
 
   @override
-  Future<User> getCurrentUser() async {
+  Future<UserProfileResponse> getCurrentUser() async {
     throw ValidationException('Validation failed', {
       'token': ['Invalid token'],
     });
@@ -359,6 +437,21 @@ class ValidationErrorMockRepository extends Mock implements AuthRepository {
       'token': ['Invalid token'],
     });
   }
+  
+  @override
+  Future<bool> hasStoredToken() async {
+    return false;
+  }
+  
+  @override
+  Future<bool> isTokenExpired() async {
+    return true;
+  }
+  
+  @override
+  Future<void> clearExpiredToken() async {
+    // Empty implementation
+  }
 }
 
 /// Mock API client that always returns successful responses
@@ -366,12 +459,12 @@ class SuccessfulMockApiClient extends Mock implements ApiClient {
   @override
   Future<Map<String, dynamic>> post(String endpoint, Map<String, dynamic> data) async {
     switch (endpoint) {
-      case 'accounts/signup/':
+      case '/accounts/register/':
         return AuthTestUtils.createSignUpApiResponse();
-      case 'accounts/login/':
+      case '/accounts/login/':
         return AuthTestUtils.createLoginApiResponse();
-      case 'logout/':
-        return {'success': true};
+      case '/logout/':
+        return AuthTestUtils.createLogoutApiResponse();
       default:
         return {'success': true};
     }
@@ -380,7 +473,7 @@ class SuccessfulMockApiClient extends Mock implements ApiClient {
   @override
   Future<Map<String, dynamic>> get(String endpoint) async {
     switch (endpoint) {
-      case 'accounts/me/':
+      case '/accounts/me/':
         return AuthTestUtils.createUserProfileApiResponse();
       default:
         return {};
@@ -392,6 +485,26 @@ class SuccessfulMockApiClient extends Mock implements ApiClient {
 
   @override
   void clearAuthToken() {}
+
+  @override
+  Future<SignUpResponse> register(SignUpRequest request) async {
+    return AuthTestUtils.createTestSignUpResponse();
+  }
+
+  @override
+  Future<LoginResponse> login(LoginRequest request) async {
+    return AuthTestUtils.createTestLoginResponse();
+  }
+
+  @override
+  Future<UserProfileResponse> getCurrentUser() async {
+    return AuthTestUtils.createTestUserProfileResponse();
+  }
+
+  @override
+  Future<LogoutResponse> logout() async {
+    return AuthTestUtils.createTestLogoutResponse();
+  }
 }
 
 /// Mock implementation for testing offline scenarios
@@ -411,6 +524,26 @@ class OfflineMockApiClient extends Mock implements ApiClient {
 
   @override
   void clearAuthToken() {}
+
+  @override
+  Future<SignUpResponse> register(SignUpRequest request) async {
+    throw NetworkException('No internet connection');
+  }
+
+  @override
+  Future<LoginResponse> login(LoginRequest request) async {
+    throw NetworkException('No internet connection');
+  }
+
+  @override
+  Future<UserProfileResponse> getCurrentUser() async {
+    throw NetworkException('No internet connection');
+  }
+
+  @override
+  Future<LogoutResponse> logout() async {
+    throw NetworkException('No internet connection');
+  }
 }
 
 /// Mock implementation for testing timeout scenarios
@@ -430,6 +563,26 @@ class TimeoutMockApiClient extends Mock implements ApiClient {
 
   @override
   void clearAuthToken() {}
+
+  @override
+  Future<SignUpResponse> register(SignUpRequest request) async {
+    throw NetworkException('Request timeout');
+  }
+
+  @override
+  Future<LoginResponse> login(LoginRequest request) async {
+    throw NetworkException('Request timeout');
+  }
+
+  @override
+  Future<UserProfileResponse> getCurrentUser() async {
+    throw NetworkException('Request timeout');
+  }
+
+  @override
+  Future<LogoutResponse> logout() async {
+    throw NetworkException('Request timeout');
+  }
 }
 
 /// Factory class for creating different types of mock implementations
@@ -508,12 +661,12 @@ class AuthTestWidget extends StatelessWidget {
   final AuthConfig? authConfig;
   
   const AuthTestWidget({
-    Key? key,
+    super.key,
     required this.child,
     this.mockAuthService,
     this.configureQuestionAuth = true,
     this.authConfig,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -547,11 +700,11 @@ class AuthStateTestWidget extends StatelessWidget {
   final AuthState? initialState;
   
   const AuthStateTestWidget({
-    Key? key,
+    super.key,
     required this.child,
     this.authStateStream,
     this.initialState,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

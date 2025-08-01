@@ -1,7 +1,5 @@
 import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
 import 'package:question_auth/question_auth.dart';
 
 /// Test utilities and helper methods for authentication testing
@@ -9,13 +7,13 @@ class AuthTestUtils {
   /// Creates a valid SignUpRequest for testing
   static SignUpRequest createValidSignUpRequest({
     String email = 'test@example.com',
-    String username = 'testuser',
+    String displayName = 'Test User',
     String password = 'password123',
     String? confirmPassword,
   }) {
     return SignUpRequest(
       email: email,
-      username: username,
+      displayName: displayName,
       password: password,
       confirmPassword: confirmPassword ?? password,
     );
@@ -24,13 +22,13 @@ class AuthTestUtils {
   /// Creates an invalid SignUpRequest for testing validation
   static SignUpRequest createInvalidSignUpRequest({
     String email = 'invalid-email',
-    String username = '',
+    String displayName = '',
     String password = 'short',
     String confirmPassword = 'different',
   }) {
     return SignUpRequest(
       email: email,
-      username: username,
+      displayName: displayName,
       password: password,
       confirmPassword: confirmPassword,
     );
@@ -60,18 +58,22 @@ class AuthTestUtils {
 
   /// Creates a test User instance
   static User createTestUser({
-    String id = '1',
     String email = 'test@example.com',
-    String username = 'testuser',
-    DateTime? createdAt,
-    DateTime? updatedAt,
+    String displayName = 'Test User',
+    bool isActive = true,
+    bool emailVerified = true,
+    bool isVerified = true,
+    bool isNew = false,
+    DateTime? dateJoined,
   }) {
     return User(
-      id: id,
       email: email,
-      username: username,
-      createdAt: createdAt ?? DateTime.parse('2023-01-01T00:00:00Z'),
-      updatedAt: updatedAt ?? DateTime.parse('2023-01-01T00:00:00Z'),
+      displayName: displayName,
+      isActive: isActive,
+      emailVerified: emailVerified,
+      isVerified: isVerified,
+      isNew: isNew,
+      dateJoined: dateJoined ?? DateTime.parse('2023-01-01T00:00:00Z'),
     );
   }
 
@@ -102,10 +104,46 @@ class AuthTestUtils {
   /// Creates a successful AuthResult for testing
   static AuthResult createSuccessResult({
     User? user,
+    String? token,
+    LoginResponse? loginData,
+    SignUpResponse? signUpData,
   }) {
     return AuthResult(
       success: true,
       user: user ?? createTestUser(),
+      token: token,
+      loginData: loginData,
+      signUpData: signUpData,
+    );
+  }
+
+  /// Creates a successful AuthResult with login data for testing
+  static AuthResult createLoginSuccessResult({
+    User? user,
+    String token = 'test-token-123',
+    LoginResponse? loginData,
+  }) {
+    final testUser = user ?? createTestUser();
+    final testLoginData = loginData ?? createTestLoginResponse(
+      token: token,
+      user: testUser,
+    );
+    
+    return AuthResult(
+      success: true,
+      user: testUser,
+      token: token,
+      loginData: testLoginData,
+    );
+  }
+
+  /// Creates a successful AuthResult with signup data for testing
+  static AuthResult createSignUpSuccessResult({
+    SignUpResponse? signUpData,
+  }) {
+    return AuthResult(
+      success: true,
+      signUpData: signUpData ?? createTestSignUpResponse(),
     );
   }
 
@@ -164,60 +202,97 @@ class AuthTestUtils {
 
   /// Creates test API response data for successful signup
   static Map<String, dynamic> createSignUpApiResponse({
-    String token = 'test-token-123',
-    String userId = '1',
+    String detail = 'Registration successful! Please check your email to verify your account.',
     String email = 'test@example.com',
-    String username = 'testuser',
-    String message = 'Registration successful',
+    String verificationTokenExpiresIn = '10 minutes',
   }) {
     return {
-      'success': true,
-      'token': token,
-      'user': {
-        'id': userId,
+      'detail': detail,
+      'data': {
         'email': email,
-        'username': username,
-        'created_at': '2023-01-01T00:00:00Z',
-        'updated_at': '2023-01-01T00:00:00Z',
+        'verification_token_expires_in': verificationTokenExpiresIn,
       },
-      'message': message,
     };
   }
 
   /// Creates test API response data for successful login
   static Map<String, dynamic> createLoginApiResponse({
     String token = 'test-token-456',
-    String userId = '1',
     String email = 'test@example.com',
-    String username = 'testuser',
-    String message = 'Login successful',
+    String displayName = 'Test User',
+    bool isVerified = true,
+    bool isNew = false,
+    List<String> roles = const ['Creator'],
+    Map<String, bool> profileComplete = const {'creator': true, 'student': false},
+    bool onboardingComplete = true,
+    List<String> incompleteRoles = const [],
+    String appAccess = 'full',
+    String redirectTo = '/dashboard',
   }) {
     return {
-      'success': true,
       'token': token,
       'user': {
-        'id': userId,
         'email': email,
-        'username': username,
-        'created_at': '2023-01-01T00:00:00Z',
-        'updated_at': '2023-01-01T00:00:00Z',
+        'display_name': displayName,
+        'is_verified': isVerified,
+        'is_new': isNew,
       },
-      'message': message,
+      'roles': roles,
+      'profile_complete': profileComplete,
+      'onboarding_complete': onboardingComplete,
+      'incomplete_roles': incompleteRoles,
+      'app_access': appAccess,
+      'redirect_to': redirectTo,
     };
   }
 
   /// Creates test API response data for user profile
   static Map<String, dynamic> createUserProfileApiResponse({
-    String userId = '1',
     String email = 'test@example.com',
-    String username = 'testuser',
+    String displayName = 'Test User',
+    bool isActive = true,
+    bool emailVerified = true,
+    String dateJoined = '2023-01-01T00:00:00Z',
+    bool isNew = false,
+    String mode = 'creator',
+    List<String> roles = const ['creator'],
+    List<String> availableRoles = const ['student'],
+    List<String> removableRoles = const [],
+    Map<String, bool> profileComplete = const {'creator': true, 'student': false},
+    bool onboardingComplete = true,
+    List<String> incompleteRoles = const [],
+    String appAccess = 'full',
+    String viewType = 'creator-complete-creator-only',
+    String redirectTo = '/dashboard',
   }) {
     return {
-      'id': userId,
-      'email': email,
-      'username': username,
-      'created_at': '2023-01-01T00:00:00Z',
-      'updated_at': '2023-01-01T00:00:00Z',
+      'user': {
+        'email': email,
+        'display_name': displayName,
+        'is_active': isActive,
+        'email_verified': emailVerified,
+        'date_joined': dateJoined,
+      },
+      'is_new': isNew,
+      'mode': mode,
+      'roles': roles,
+      'available_roles': availableRoles,
+      'removable_roles': removableRoles,
+      'profile_complete': profileComplete,
+      'onboarding_complete': onboardingComplete,
+      'incomplete_roles': incompleteRoles,
+      'app_access': appAccess,
+      'viewType': viewType,
+      'redirect_to': redirectTo,
+    };
+  }
+
+  /// Creates test API response data for logout
+  static Map<String, dynamic> createLogoutApiResponse({
+    String detail = 'Logged out successfully.',
+  }) {
+    return {
+      'detail': detail,
     };
   }
 
@@ -243,6 +318,82 @@ class AuthTestUtils {
     }
 
     return response;
+  }
+
+  /// Creates a test SignUpResponse for testing
+  static SignUpResponse createTestSignUpResponse({
+    String detail = 'Registration successful! Please check your email to verify your account.',
+    String email = 'test@example.com',
+    String verificationTokenExpiresIn = '10 minutes',
+  }) {
+    return SignUpResponse(
+      detail: detail,
+      data: SignUpData(
+        email: email,
+        verificationTokenExpiresIn: verificationTokenExpiresIn,
+      ),
+    );
+  }
+
+  /// Creates a test LoginResponse for testing
+  static LoginResponse createTestLoginResponse({
+    String token = 'test-token-123',
+    User? user,
+    List<String> roles = const ['Creator'],
+    Map<String, bool> profileComplete = const {'creator': true, 'student': false},
+    bool onboardingComplete = true,
+    List<String> incompleteRoles = const [],
+    String appAccess = 'full',
+    String redirectTo = '/dashboard',
+  }) {
+    return LoginResponse(
+      token: token,
+      user: user ?? createTestUser(),
+      roles: roles,
+      profileComplete: profileComplete,
+      onboardingComplete: onboardingComplete,
+      incompleteRoles: incompleteRoles,
+      appAccess: appAccess,
+      redirectTo: redirectTo,
+    );
+  }
+
+  /// Creates a test UserProfileResponse for testing
+  static UserProfileResponse createTestUserProfileResponse({
+    User? user,
+    bool isNew = false,
+    String mode = 'creator',
+    List<String> roles = const ['creator'],
+    List<String> availableRoles = const ['student'],
+    List<String> removableRoles = const [],
+    Map<String, bool> profileComplete = const {'creator': true, 'student': false},
+    bool onboardingComplete = true,
+    List<String> incompleteRoles = const [],
+    String appAccess = 'full',
+    String viewType = 'creator-complete-creator-only',
+    String redirectTo = '/dashboard',
+  }) {
+    return UserProfileResponse(
+      user: user ?? createTestUser(),
+      isNew: isNew,
+      mode: mode,
+      roles: roles,
+      availableRoles: availableRoles,
+      removableRoles: removableRoles,
+      profileComplete: profileComplete,
+      onboardingComplete: onboardingComplete,
+      incompleteRoles: incompleteRoles,
+      appAccess: appAccess,
+      viewType: viewType,
+      redirectTo: redirectTo,
+    );
+  }
+
+  /// Creates a test LogoutResponse for testing
+  static LogoutResponse createTestLogoutResponse({
+    String detail = 'Logged out successfully.',
+  }) {
+    return LogoutResponse(detail: detail);
   }
 
   /// Creates a test AuthConfig for testing

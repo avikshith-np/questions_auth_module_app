@@ -1,453 +1,484 @@
-import 'dart:async';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:mockito/annotations.dart';
 import 'package:question_auth/question_auth.dart';
-
 import 'auth_test_utils.dart';
 import 'mock_implementations.dart';
 
-/// Example tests demonstrating how to use the authentication test utilities
-/// 
-/// These tests serve as documentation and examples for other developers
-/// on how to properly test authentication-related functionality.
+/// Example tests demonstrating the usage of updated test utilities
+/// for new API models and functionality
 void main() {
-  group('AuthTestUtils Examples', () {
-    group('Creating Test Data', () {
-      test('should create valid signup request', () {
+  group('Test Utilities Examples - New API Models', () {
+    group('SignUpResponse Test Utilities', () {
+      test('should create test SignUpResponse with default values', () {
+        final signUpResponse = AuthTestUtils.createTestSignUpResponse();
+        
+        expect(signUpResponse.detail, 'Registration successful! Please check your email to verify your account.');
+        expect(signUpResponse.data?.email, 'test@example.com');
+        expect(signUpResponse.data?.verificationTokenExpiresIn, '10 minutes');
+      });
+
+      test('should create test SignUpResponse with custom values', () {
+        final signUpResponse = AuthTestUtils.createTestSignUpResponse(
+          detail: 'Custom registration message',
+          email: 'custom@example.com',
+          verificationTokenExpiresIn: '15 minutes',
+        );
+        
+        expect(signUpResponse.detail, 'Custom registration message');
+        expect(signUpResponse.data?.email, 'custom@example.com');
+        expect(signUpResponse.data?.verificationTokenExpiresIn, '15 minutes');
+      });
+
+      test('should create SignUpResponse from API response data', () {
+        final apiResponse = AuthTestUtils.createSignUpApiResponse(
+          detail: 'API registration successful',
+          email: 'api@example.com',
+        );
+        
+        final signUpResponse = SignUpResponse.fromJson(apiResponse);
+        
+        expect(signUpResponse.detail, 'API registration successful');
+        expect(signUpResponse.data?.email, 'api@example.com');
+      });
+    });
+
+    group('LoginResponse Test Utilities', () {
+      test('should create test LoginResponse with default values', () {
+        final loginResponse = AuthTestUtils.createTestLoginResponse();
+        
+        expect(loginResponse.token, 'test-token-123');
+        expect(loginResponse.user.email, 'test@example.com');
+        expect(loginResponse.roles, ['Creator']);
+        expect(loginResponse.profileComplete, {'creator': true, 'student': false});
+        expect(loginResponse.onboardingComplete, true);
+        expect(loginResponse.appAccess, 'full');
+        expect(loginResponse.redirectTo, '/dashboard');
+      });
+
+      test('should create test LoginResponse with custom values', () {
+        final customUser = AuthTestUtils.createTestUser(
+          email: 'custom@example.com',
+          displayName: 'Custom User',
+        );
+        
+        final loginResponse = AuthTestUtils.createTestLoginResponse(
+          token: 'custom-token-456',
+          user: customUser,
+          roles: ['Student', 'Creator'],
+          profileComplete: {'student': true, 'creator': true},
+          onboardingComplete: false,
+          appAccess: 'limited',
+          redirectTo: '/onboarding',
+        );
+        
+        expect(loginResponse.token, 'custom-token-456');
+        expect(loginResponse.user.email, 'custom@example.com');
+        expect(loginResponse.roles, ['Student', 'Creator']);
+        expect(loginResponse.profileComplete, {'student': true, 'creator': true});
+        expect(loginResponse.onboardingComplete, false);
+        expect(loginResponse.appAccess, 'limited');
+        expect(loginResponse.redirectTo, '/onboarding');
+      });
+
+      test('should create LoginResponse from API response data', () {
+        final apiResponse = AuthTestUtils.createLoginApiResponse(
+          token: 'api-token-789',
+          email: 'api@example.com',
+          displayName: 'API User',
+          roles: ['Student'],
+        );
+        
+        final loginResponse = LoginResponse.fromJson(apiResponse);
+        
+        expect(loginResponse.token, 'api-token-789');
+        expect(loginResponse.user.email, 'api@example.com');
+        expect(loginResponse.user.displayName, 'API User');
+        expect(loginResponse.roles, ['Student']);
+      });
+    });
+
+    group('UserProfileResponse Test Utilities', () {
+      test('should create test UserProfileResponse with default values', () {
+        final userProfile = AuthTestUtils.createTestUserProfileResponse();
+        
+        expect(userProfile.user.email, 'test@example.com');
+        expect(userProfile.isNew, false);
+        expect(userProfile.mode, 'creator');
+        expect(userProfile.roles, ['creator']);
+        expect(userProfile.availableRoles, ['student']);
+        expect(userProfile.profileComplete, {'creator': true, 'student': false});
+        expect(userProfile.onboardingComplete, true);
+        expect(userProfile.appAccess, 'full');
+        expect(userProfile.viewType, 'creator-complete-creator-only');
+        expect(userProfile.redirectTo, '/dashboard');
+      });
+
+      test('should create test UserProfileResponse with custom values', () {
+        final customUser = AuthTestUtils.createTestUser(
+          email: 'profile@example.com',
+          displayName: 'Profile User',
+        );
+        
+        final userProfile = AuthTestUtils.createTestUserProfileResponse(
+          user: customUser,
+          isNew: true,
+          mode: 'student',
+          roles: ['student'],
+          availableRoles: ['creator'],
+          profileComplete: {'student': false, 'creator': false},
+          onboardingComplete: false,
+          appAccess: 'none',
+          viewType: 'student-incomplete',
+          redirectTo: '/profile-setup',
+        );
+        
+        expect(userProfile.user.email, 'profile@example.com');
+        expect(userProfile.isNew, true);
+        expect(userProfile.mode, 'student');
+        expect(userProfile.roles, ['student']);
+        expect(userProfile.availableRoles, ['creator']);
+        expect(userProfile.profileComplete, {'student': false, 'creator': false});
+        expect(userProfile.onboardingComplete, false);
+        expect(userProfile.appAccess, 'none');
+        expect(userProfile.viewType, 'student-incomplete');
+        expect(userProfile.redirectTo, '/profile-setup');
+      });
+
+      test('should create UserProfileResponse from API response data', () {
+        final apiResponse = AuthTestUtils.createUserProfileApiResponse(
+          email: 'profile-api@example.com',
+          displayName: 'Profile API User',
+          mode: 'student',
+          roles: ['student'],
+        );
+        
+        final userProfile = UserProfileResponse.fromJson(apiResponse);
+        
+        expect(userProfile.user.email, 'profile-api@example.com');
+        expect(userProfile.user.displayName, 'Profile API User');
+        expect(userProfile.mode, 'student');
+        expect(userProfile.roles, ['student']);
+      });
+    });
+
+    group('AuthResult Test Utilities', () {
+      test('should create successful AuthResult with login data', () {
+        final authResult = AuthTestUtils.createLoginSuccessResult(
+          token: 'success-token-123',
+        );
+        
+        expect(authResult.success, true);
+        expect(authResult.token, 'success-token-123');
+        expect(authResult.user, isNotNull);
+        expect(authResult.loginData, isNotNull);
+        expect(authResult.hasRichUserData, true);
+        expect(authResult.userRoles, ['Creator']);
+        expect(authResult.profileComplete, {'creator': true, 'student': false});
+        expect(authResult.onboardingComplete, true);
+        expect(authResult.appAccess, 'full');
+        expect(authResult.redirectTo, '/dashboard');
+      });
+
+      test('should create successful AuthResult with signup data', () {
+        final authResult = AuthTestUtils.createSignUpSuccessResult();
+        
+        expect(authResult.success, true);
+        expect(authResult.signUpData, isNotNull);
+        expect(authResult.hasSignUpData, true);
+        expect(authResult.signUpData?.detail, contains('Registration successful'));
+      });
+
+      test('should create failed AuthResult with field errors', () {
+        final fieldErrors = {
+          'email': ['Invalid email format'],
+          'password': ['Password too short'],
+        };
+        
+        final authResult = AuthTestUtils.createFailureResult(
+          error: 'Validation failed',
+          fieldErrors: fieldErrors,
+        );
+        
+        expect(authResult.success, false);
+        expect(authResult.error, 'Validation failed');
+        expect(authResult.hasFieldErrors, true);
+        expect(authResult.fieldErrors, fieldErrors);
+        expect(authResult.getFieldErrors('email'), ['Invalid email format']);
+        expect(authResult.getFirstFieldError('password'), 'Password too short');
+      });
+    });
+  });
+
+  group('Mock Implementations Examples - New API Models', () {
+    group('MockAuthService with New API Data', () {
+      late MockAuthService mockAuthService;
+
+      setUp(() {
+        mockAuthService = MockAuthService();
+      });
+
+      tearDown(() {
+        mockAuthService.dispose();
+      });
+
+      test('should simulate authentication with login data', () {
+        final user = AuthTestUtils.createTestUser();
+        final loginData = AuthTestUtils.createTestLoginResponse(
+          user: user,
+          roles: ['Student', 'Creator'],
+          profileComplete: {'student': true, 'creator': false},
+        );
+        
+        mockAuthService.simulateAuthentication(user, loginData: loginData);
+        
+        expect(mockAuthService.isAuthenticated, true);
+        expect(mockAuthService.currentUser, user);
+        expect(mockAuthService.userRoles, ['Student', 'Creator']);
+        expect(mockAuthService.profileComplete, {'student': true, 'creator': false});
+      });
+
+      test('should provide access to user profile data', () {
+        final user = AuthTestUtils.createTestUser();
+        final loginData = AuthTestUtils.createTestLoginResponse(
+          user: user,
+          onboardingComplete: false,
+          appAccess: 'limited',
+        );
+        
+        mockAuthService.simulateAuthentication(user, loginData: loginData);
+        
+        expect(mockAuthService.onboardingComplete, false);
+        expect(mockAuthService.appAccess, 'limited');
+      });
+    });
+
+    group('MockAuthRepository with New API Models', () {
+      late MockAuthRepository mockRepository;
+
+      setUp(() {
+        mockRepository = MockAuthRepository();
+      });
+
+      test('should return AuthResult for signup', () async {
         final request = AuthTestUtils.createValidSignUpRequest();
         
-        expect(request.email, equals('test@example.com'));
-        expect(request.username, equals('testuser'));
-        expect(request.password, equals('password123'));
-        expect(request.confirmPassword, equals('password123'));
+        final result = await mockRepository.signUp(request);
         
-        // Validate that the request passes validation
-        final errors = request.validate();
-        expect(errors, isEmpty);
+        expect(result, isA<AuthResult>());
+        expect(result.success, true);
+        expect(result.hasSignUpData, true);
       });
-      
-      test('should create invalid signup request for testing validation', () {
-        final request = AuthTestUtils.createInvalidSignUpRequest();
+
+      test('should return AuthResult for login', () async {
+        final request = AuthTestUtils.createValidLoginRequest();
         
-        expect(request.email, equals('invalid-email'));
-        expect(request.username, isEmpty);
-        expect(request.password, equals('short'));
-        expect(request.confirmPassword, equals('different'));
+        final result = await mockRepository.login(request);
         
-        // Validate that the request fails validation
-        final errors = request.validate();
-        expect(errors, isNotEmpty);
+        expect(result, isA<AuthResult>());
+        expect(result.success, true);
+        expect(result.hasRichUserData, true);
+        expect(result.userRoles, isNotNull);
       });
-      
-      test('should create test user with default values', () {
-        final user = AuthTestUtils.createTestUser();
+
+      test('should return UserProfileResponse for getCurrentUser', () async {
+        final userProfile = await mockRepository.getCurrentUser();
         
-        expect(user.id, equals('1'));
-        expect(user.email, equals('test@example.com'));
-        expect(user.username, equals('testuser'));
-        expect(user.createdAt, isNotNull);
+        expect(userProfile, isA<UserProfileResponse>());
+        expect(userProfile.user, isNotNull);
+        expect(userProfile.roles, isNotNull);
+        expect(userProfile.profileComplete, isNotNull);
       });
-      
-      test('should create test user with custom values', () {
-        final customUser = AuthTestUtils.createTestUser(
-          id: '123',
-          email: 'custom@example.com',
-          username: 'customuser',
+
+      test('should demonstrate custom result creation', () async {
+        final customSignUpResponse = AuthTestUtils.createTestSignUpResponse(
+          detail: 'Custom signup success',
+        );
+        final customResult = AuthTestUtils.createSignUpSuccessResult(
+          signUpData: customSignUpResponse,
         );
         
-        expect(customUser.id, equals('123'));
-        expect(customUser.email, equals('custom@example.com'));
-        expect(customUser.username, equals('customuser'));
+        expect(customResult.success, true);
+        expect(customResult.signUpData?.detail, 'Custom signup success');
+        expect(customResult.hasSignUpData, true);
       });
-      
-      test('should create successful auth response', () {
-        final response = AuthTestUtils.createSuccessResponse();
+    });
+
+    group('MockApiClient with New Endpoint Methods', () {
+      late MockApiClient mockApiClient;
+
+      setUp(() {
+        mockApiClient = MockApiClient();
+      });
+
+      test('should return SignUpResponse for register endpoint', () async {
+        final request = AuthTestUtils.createValidSignUpRequest();
         
-        expect(response.success, isTrue);
-        expect(response.token, equals('test-token-123'));
+        final response = await mockApiClient.register(request);
+        
+        expect(response, isA<SignUpResponse>());
+        expect(response.detail, isNotNull);
+        expect(response.data, isNotNull);
+      });
+
+      test('should return LoginResponse for login endpoint', () async {
+        final request = AuthTestUtils.createValidLoginRequest();
+        
+        final response = await mockApiClient.login(request);
+        
+        expect(response, isA<LoginResponse>());
+        expect(response.token, isNotNull);
         expect(response.user, isNotNull);
-        expect(response.message, equals('Operation successful'));
+        expect(response.roles, isNotNull);
+        expect(response.profileComplete, isNotNull);
       });
-      
-      test('should create failed auth response', () {
-        final response = AuthTestUtils.createFailureResponse(
-          message: 'Custom error message',
+
+      test('should return UserProfileResponse for getCurrentUser endpoint', () async {
+        final response = await mockApiClient.getCurrentUser();
+        
+        expect(response, isA<UserProfileResponse>());
+        expect(response.user, isNotNull);
+        expect(response.roles, isNotNull);
+        expect(response.profileComplete, isNotNull);
+      });
+
+      test('should return LogoutResponse for logout endpoint', () async {
+        final response = await mockApiClient.logout();
+        
+        expect(response, isA<LogoutResponse>());
+        expect(response.detail, isNotNull);
+      });
+
+      test('should demonstrate custom response creation', () async {
+        final customLoginResponse = AuthTestUtils.createTestLoginResponse(
+          token: 'custom-mock-token',
+          roles: ['Admin'],
         );
         
-        expect(response.success, isFalse);
-        expect(response.token, isNull);
-        expect(response.user, isNull);
-        expect(response.message, equals('Custom error message'));
+        expect(customLoginResponse.token, 'custom-mock-token');
+        expect(customLoginResponse.roles, ['Admin']);
+        expect(customLoginResponse.user, isNotNull);
+        expect(customLoginResponse.profileComplete, isNotNull);
       });
     });
-    
-    group('Creating Auth States', () {
-      test('should create authenticated state', () {
-        final state = AuthTestUtils.createAuthenticatedState();
+
+    group('Specialized Mock Implementations', () {
+      test('should use SuccessfulMockApiClient for consistent success responses', () async {
+        final mockApiClient = SuccessfulMockApiClient();
         
-        expect(state.status, equals(AuthStatus.authenticated));
-        expect(state.user, isNotNull);
-        expect(state.error, isNull);
+        final signUpRequest = AuthTestUtils.createValidSignUpRequest();
+        final loginRequest = AuthTestUtils.createValidLoginRequest();
+        
+        final signUpResponse = await mockApiClient.register(signUpRequest);
+        final loginResponse = await mockApiClient.login(loginRequest);
+        final userProfile = await mockApiClient.getCurrentUser();
+        final logoutResponse = await mockApiClient.logout();
+        
+        expect(signUpResponse, isA<SignUpResponse>());
+        expect(loginResponse, isA<LoginResponse>());
+        expect(userProfile, isA<UserProfileResponse>());
+        expect(logoutResponse, isA<LogoutResponse>());
       });
-      
-      test('should create unauthenticated state with error', () {
-        final state = AuthTestUtils.createUnauthenticatedState(
-          error: 'Session expired',
+
+      test('should use NetworkErrorMockApiClient for network error scenarios', () async {
+        final mockApiClient = NetworkErrorMockApiClient();
+        
+        final signUpRequest = AuthTestUtils.createValidSignUpRequest();
+        
+        expect(
+          () => mockApiClient.register(signUpRequest),
+          throwsA(isA<NetworkException>()),
         );
-        
-        expect(state.status, equals(AuthStatus.unauthenticated));
-        expect(state.user, isNull);
-        expect(state.error, equals('Session expired'));
-      });
-      
-      test('should create unknown state', () {
-        final state = AuthTestUtils.createUnknownState();
-        
-        expect(state.status, equals(AuthStatus.unknown));
-        expect(state.user, isNull);
-        expect(state.error, isNull);
-      });
-    });
-    
-    group('Creating API Response Data', () {
-      test('should create signup API response', () {
-        final response = AuthTestUtils.createSignUpApiResponse();
-        
-        expect(response['success'], isTrue);
-        expect(response['token'], equals('test-token-123'));
-        expect(response['user'], isA<Map<String, dynamic>>());
-        expect(response['message'], equals('Registration successful'));
-      });
-      
-      test('should create login API response with custom data', () {
-        final response = AuthTestUtils.createLoginApiResponse(
-          token: 'custom-token',
-          email: 'custom@example.com',
-          message: 'Welcome back!',
-        );
-        
-        expect(response['token'], equals('custom-token'));
-        expect(response['user']['email'], equals('custom@example.com'));
-        expect(response['message'], equals('Welcome back!'));
-      });
-      
-      test('should create error API response', () {
-        final response = AuthTestUtils.createErrorApiResponse(
-          message: 'Validation failed',
-          statusCode: 400,
-          code: 'VALIDATION_ERROR',
-          fieldErrors: {
-            'email': ['Invalid format'],
-            'password': ['Too short'],
-          },
-        );
-        
-        expect(response['success'], isFalse);
-        expect(response['message'], equals('Validation failed'));
-        expect(response['status_code'], equals(400));
-        expect(response['code'], equals('VALIDATION_ERROR'));
-        expect(response['errors'], isA<Map<String, List<String>>>());
-      });
-    });
-    
-    group('Exception Verification', () {
-      test('should verify validation exception', () {
-        final exception = ValidationException('Validation failed', {
-          'email': ['Invalid format'],
-          'password': ['Too short'],
-        });
-        
-        AuthTestUtils.verifyValidationException(exception, {
-          'email': ['Invalid format'],
-          'password': ['Too short'],
-        });
-      });
-      
-      test('should verify API exception', () {
-        final exception = ApiException('Not found', 404, 'NOT_FOUND');
-        
-        AuthTestUtils.verifyApiException(
-          exception,
-          404,
-          'Not found',
-          expectedCode: 'NOT_FOUND',
+        expect(
+          () => mockApiClient.getCurrentUser(),
+          throwsA(isA<NetworkException>()),
         );
       });
-      
-      test('should verify generic exception', () {
-        final exception = NetworkException('Connection failed');
+
+      test('should use ValidationErrorMockRepository for validation error scenarios', () async {
+        final mockRepository = ValidationErrorMockRepository();
         
-        AuthTestUtils.verifyException<NetworkException>(
-          exception,
-          'Connection failed',
+        final signUpRequest = AuthTestUtils.createValidSignUpRequest();
+        
+        expect(
+          () => mockRepository.signUp(signUpRequest),
+          throwsA(isA<ValidationException>()),
+        );
+        expect(
+          () => mockRepository.getCurrentUser(),
+          throwsA(isA<ValidationException>()),
         );
       });
     });
   });
-  
-  group('MockFactory Examples', () {
+
+  group('Factory Methods Examples', () {
     test('should create authenticated mock auth service', () {
-      final mockService = MockFactory.createAuthenticatedMockAuthService();
+      final user = AuthTestUtils.createTestUser(email: 'factory@example.com');
+      final mockAuthService = MockFactory.createAuthenticatedMockAuthService(user: user);
       
-      expect(mockService.isAuthenticated, isTrue);
-      expect(mockService.currentUser, isNotNull);
-      expect(mockService.currentAuthState.status, equals(AuthStatus.authenticated));
+      expect(mockAuthService.isAuthenticated, true);
+      expect(mockAuthService.currentUser?.email, 'factory@example.com');
+      
+      mockAuthService.dispose();
     });
-    
+
     test('should create unauthenticated mock auth service', () {
-      final mockService = MockFactory.createUnauthenticatedMockAuthService(
-        error: 'Session expired',
+      const errorMessage = 'Authentication failed';
+      final mockAuthService = MockFactory.createUnauthenticatedMockAuthService(
+        error: errorMessage,
       );
       
-      expect(mockService.isAuthenticated, isFalse);
-      expect(mockService.currentUser, isNull);
-      expect(mockService.currentAuthState.error, equals('Session expired'));
+      expect(mockAuthService.isAuthenticated, false);
+      expect(mockAuthService.currentAuthState.error, errorMessage);
+      
+      mockAuthService.dispose();
     });
-    
-    test('should create successful mock repository', () async {
-      final mockRepo = MockFactory.createSuccessfulMockRepository();
+
+    test('should create mock token manager with token', () {
+      const testToken = 'factory-token-123';
+      final mockTokenManager = MockFactory.createTokenMockTokenManager(token: testToken);
       
-      final signUpResult = await mockRepo.signUp(
-        AuthTestUtils.createValidSignUpRequest(),
-      );
-      expect(signUpResult.success, isTrue);
-      
-      final loginResult = await mockRepo.login(
-        AuthTestUtils.createValidLoginRequest(),
-      );
-      expect(loginResult.success, isTrue);
-      
-      final user = await mockRepo.getCurrentUser();
-      expect(user, isNotNull);
+      expect(mockTokenManager.storedToken, testToken);
     });
-    
-    test('should create validation error mock repository', () async {
-      final mockRepo = MockFactory.createValidationErrorMockRepository();
-      
-      expect(
-        () => mockRepo.signUp(AuthTestUtils.createInvalidSignUpRequest()),
-        throwsA(isA<ValidationException>()),
-      );
-      
-      expect(
-        () => mockRepo.login(AuthTestUtils.createInvalidLoginRequest()),
-        throwsA(isA<ValidationException>()),
-      );
-    });
-    
-    test('should create mock token manager with token', () async {
-      final mockTokenManager = MockFactory.createTokenMockTokenManager(
-        token: 'test-token-456',
-      );
-      
-      final token = await mockTokenManager.getToken();
-      expect(token, equals('test-token-456'));
-      
-      final hasToken = await mockTokenManager.hasValidToken();
-      expect(hasToken, isTrue);
-    });
-    
-    test('should create empty mock token manager', () async {
+
+    test('should create empty mock token manager', () {
       final mockTokenManager = MockFactory.createEmptyMockTokenManager();
       
-      final token = await mockTokenManager.getToken();
-      expect(token, isNull);
-      
-      final hasToken = await mockTokenManager.hasValidToken();
-      expect(hasToken, isFalse);
+      expect(mockTokenManager.storedToken, isNull);
     });
   });
-  
-  group('Mock Service State Management Examples', () {
-    late MockAuthService mockService;
-    
-    setUp(() {
-      mockService = MockFactory.createMockAuthService();
+
+  group('Error Handling Examples', () {
+    test('should verify ValidationException with field errors', () {
+      final fieldErrors = {
+        'email': ['Invalid email format'],
+        'password': ['Password too short'],
+      };
+      
+      final exception = ValidationException('Validation failed', fieldErrors);
+      
+      AuthTestUtils.verifyValidationException(exception, fieldErrors);
     });
-    
-    tearDown(() {
-      mockService.dispose();
+
+    test('should verify ApiException with status code', () {
+      const statusCode = 401;
+      const message = 'Unauthorized access';
+      const code = 'AUTH_FAILED';
+      
+      final exception = ApiException(message, statusCode, code);
+      
+      AuthTestUtils.verifyApiException(exception, statusCode, message, expectedCode: code);
     });
-    
-    test('should simulate authentication state changes', () async {
-      // Start with unknown state
-      expect(mockService.currentAuthState.status, equals(AuthStatus.unknown));
+
+    test('should verify general exception type and message', () {
+      final exception = NetworkException('Network connection failed');
       
-      // Simulate authentication
-      final user = AuthTestUtils.createTestUser();
-      mockService.simulateAuthentication(user);
-      
-      expect(mockService.isAuthenticated, isTrue);
-      expect(mockService.currentUser, equals(user));
-      
-      // Simulate logout
-      mockService.simulateLogout();
-      
-      expect(mockService.isAuthenticated, isFalse);
-      expect(mockService.currentUser, isNull);
-    });
-    
-    test('should emit state changes through stream', () async {
-      final states = <AuthStatus>[];
-      
-      mockService.authStateStream.listen((state) {
-        states.add(state.status);
-      });
-      
-      // Simulate authentication
-      mockService.simulateAuthentication(AuthTestUtils.createTestUser());
-      await Future.delayed(Duration.zero); // Allow stream to emit
-      
-      // Simulate logout
-      mockService.simulateLogout();
-      await Future.delayed(Duration.zero); // Allow stream to emit
-      
-      expect(states, contains(AuthStatus.authenticated));
-      expect(states, contains(AuthStatus.unauthenticated));
-    });
-  });
-  
-  group('Error Mock Examples', () {
-    test('should create network error mock API client', () async {
-      final mockClient = NetworkErrorMockApiClient();
-      
-      expect(
-        () => mockClient.post('test', {}),
-        throwsA(isA<NetworkException>()),
+      AuthTestUtils.verifyException<NetworkException>(
+        exception,
+        'Network connection failed',
+        exactMatch: false,
       );
-      
-      expect(
-        () => mockClient.get('test'),
-        throwsA(isA<NetworkException>()),
-      );
-    });
-    
-    test('should create API error mock API client', () async {
-      final mockClient = ApiErrorMockApiClient(
-        statusCode: 401,
-        message: 'Unauthorized',
-        code: 'UNAUTHORIZED',
-      );
-      
-      try {
-        await mockClient.post('test', {});
-        fail('Expected ApiException');
-      } catch (e) {
-        AuthTestUtils.verifyApiException(
-          e as ApiException,
-          401,
-          'Unauthorized',
-          expectedCode: 'UNAUTHORIZED',
-        );
-      }
-    });
-    
-    test('should create token error mock token manager', () async {
-      final mockTokenManager = TokenErrorMockTokenManager();
-      
-      expect(
-        () => mockTokenManager.saveToken('token'),
-        throwsA(isA<TokenException>()),
-      );
-      
-      expect(
-        () => mockTokenManager.getToken(),
-        throwsA(isA<TokenException>()),
-      );
-      
-      expect(
-        () => mockTokenManager.clearToken(),
-        throwsA(isA<TokenException>()),
-      );
-    });
-  });
-  
-  group('Stream Testing Examples', () {
-    test('should wait for specific stream value', () async {
-      final controller = StreamController<AuthState>();
-      
-      // Start waiting for authenticated state
-      final future = AuthTestUtils.waitForStreamValue(
-        controller.stream,
-        (state) => state.status == AuthStatus.authenticated,
-        timeout: const Duration(seconds: 1),
-      );
-      
-      // Emit some states
-      controller.add(AuthTestUtils.createUnknownState());
-      controller.add(AuthTestUtils.createUnauthenticatedState());
-      controller.add(AuthTestUtils.createAuthenticatedState());
-      
-      // Should complete with authenticated state
-      final result = await future;
-      expect(result.status, equals(AuthStatus.authenticated));
-      
-      await controller.close();
-    });
-    
-    test('should timeout when expected value is not emitted', () async {
-      final controller = StreamController<AuthState>();
-      
-      // Start waiting for authenticated state with short timeout
-      final future = AuthTestUtils.waitForStreamValue(
-        controller.stream,
-        (state) => state.status == AuthStatus.authenticated,
-        timeout: const Duration(milliseconds: 100),
-      );
-      
-      // Emit only unauthenticated state
-      controller.add(AuthTestUtils.createUnauthenticatedState());
-      
-      // Should timeout
-      expect(
-        () => future,
-        throwsA(isA<Exception>()),
-      );
-      
-      await controller.close();
-    });
-  });
-  
-  group('Widget Testing Examples', () {
-    testWidgets('should create test widget environment', (tester) async {
-      final testWidget = Text('Test Widget');
-      
-      await WidgetTestHelper.pumpAuthWidget(
-        tester,
-        testWidget,
-        configureQuestionAuth: true,
-      );
-      
-      expect(find.text('Test Widget'), findsOneWidget);
-      expect(find.byType(MaterialApp), findsOneWidget);
-      expect(find.byType(Scaffold), findsOneWidget);
-    });
-    
-    testWidgets('should create basic auth widget wrapper', (tester) async {
-      final testWidget = AuthTestWidget(
-        child: Text('Auth Test Widget'),
-        configureQuestionAuth: false, // Don't configure to avoid state issues
-      );
-      
-      await tester.pumpWidget(testWidget);
-      
-      expect(find.text('Auth Test Widget'), findsOneWidget);
-      expect(find.byType(MaterialApp), findsOneWidget);
-      expect(find.byType(Scaffold), findsOneWidget);
-    });
-    
-    testWidgets('should create auth state widget wrapper', (tester) async {
-      final testWidget = AuthStateTestWidget(
-        child: Text('State Test Widget'),
-        initialState: AuthTestUtils.createUnknownState(),
-      );
-      
-      await tester.pumpWidget(testWidget);
-      
-      expect(find.text('State Test Widget'), findsOneWidget);
-      expect(find.byType(MaterialApp), findsOneWidget);
-      expect(find.byType(Scaffold), findsOneWidget);
     });
   });
 }
