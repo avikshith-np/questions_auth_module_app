@@ -81,8 +81,8 @@
     - Write unit tests for enhanced QuestionAuth facade
     - _Requirements: 1.1, 1.2, 1.3, 4.5, 4.6, 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 8. Update validation for new API requirements
-  - [ ] 8.1 Update client-side validation for display_name
+- [x] 8. Update validation for new API requirements
+  - [x] 8.1 Update client-side validation for display_name
     - Update SignUpRequest validation to handle display_name instead of username
     - Add display_name format validation and length requirements
     - Update password matching validation for confirm_password field

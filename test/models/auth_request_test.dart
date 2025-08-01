@@ -135,6 +135,110 @@ void main() {
         expect(errors, isEmpty);
       });
 
+      test('should return error for display name with only whitespace', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: '   ',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final errors = request.validate();
+
+        expect(errors, contains('Display name cannot be only whitespace'));
+      });
+
+      test('should return error for display name with invalid characters', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: 'John@#\$%',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final errors = request.validate();
+
+        expect(errors, contains('Display name can only contain letters, numbers, spaces, and common punctuation'));
+      });
+
+      test('should accept display name with valid punctuation', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: "John O'Connor-Smith",
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final errors = request.validate();
+
+        expect(errors, isEmpty);
+      });
+
+      test('should accept display name with underscores and dots', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: 'John_Doe.Jr',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final errors = request.validate();
+
+        expect(errors, isEmpty);
+      });
+
+      test('should accept display name with numbers', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: 'User123',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final errors = request.validate();
+
+        expect(errors, isEmpty);
+      });
+
+      test('should accept display name with unicode characters', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: 'José María',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final errors = request.validate();
+
+        expect(errors, isEmpty);
+      });
+
+      test('should trim display name before validation', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: '  John Doe  ',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final errors = request.validate();
+
+        expect(errors, isEmpty);
+      });
+
+      test('should return error for display name that becomes too short after trimming', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: '  A  ',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final errors = request.validate();
+
+        expect(errors, contains('Display name must be at least 2 characters long'));
+      });
+
       test('should return error for empty password', () {
         const request = SignUpRequest(
           email: 'test@example.com',
@@ -227,6 +331,32 @@ void main() {
         expect(errors, contains('Passwords do not match'));
       });
 
+      test('should validate password matching with exact comparison', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: 'Test User',
+          password: 'password123',
+          confirmPassword: 'password123 ', // Extra space
+        );
+
+        final errors = request.validate();
+
+        expect(errors, contains('Passwords do not match'));
+      });
+
+      test('should validate password matching is case sensitive', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: 'Test User',
+          password: 'password123',
+          confirmPassword: 'Password123', // Different case
+        );
+
+        final errors = request.validate();
+
+        expect(errors, contains('Passwords do not match'));
+      });
+
       test('should return multiple errors for invalid request', () {
         const request = SignUpRequest(
           email: 'invalid-email',
@@ -290,6 +420,51 @@ void main() {
         expect(fieldErrors['displayName'], contains('Display name must be at least 2 characters long'));
         expect(fieldErrors['password'], isNull);
         expect(fieldErrors['confirmPassword'], isNull);
+      });
+
+      test('should return field-specific errors for display name with only whitespace', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: '   ',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors['email'], isNull);
+        expect(fieldErrors['displayName'], contains('Display name cannot be only whitespace'));
+        expect(fieldErrors['password'], isNull);
+        expect(fieldErrors['confirmPassword'], isNull);
+      });
+
+      test('should return field-specific errors for display name with invalid characters', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: 'John@#\$%',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors['email'], isNull);
+        expect(fieldErrors['displayName'], contains('Display name can only contain letters, numbers, spaces, and common punctuation'));
+        expect(fieldErrors['password'], isNull);
+        expect(fieldErrors['confirmPassword'], isNull);
+      });
+
+      test('should validate display name length after trimming', () {
+        const request = SignUpRequest(
+          email: 'test@example.com',
+          displayName: '  A  ',
+          password: 'password123',
+          confirmPassword: 'password123',
+        );
+
+        final fieldErrors = request.validateFields();
+
+        expect(fieldErrors['displayName'], contains('Display name must be at least 2 characters long'));
       });
 
       test('should return field-specific errors for invalid password', () {

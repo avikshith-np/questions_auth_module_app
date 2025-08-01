@@ -57,10 +57,17 @@ class SignUpRequest {
     final displayNameErrors = <String>[];
     if (displayName.isEmpty) {
       displayNameErrors.add('Display name is required');
-    } else if (displayName.length < 2) {
-      displayNameErrors.add('Display name must be at least 2 characters long');
-    } else if (displayName.length > 50) {
-      displayNameErrors.add('Display name must be less than 50 characters');
+    } else {
+      final trimmedDisplayName = displayName.trim();
+      if (trimmedDisplayName.isEmpty) {
+        displayNameErrors.add('Display name cannot be only whitespace');
+      } else if (trimmedDisplayName.length < 2) {
+        displayNameErrors.add('Display name must be at least 2 characters long');
+      } else if (trimmedDisplayName.length > 50) {
+        displayNameErrors.add('Display name must be less than 50 characters');
+      } else if (!_isValidDisplayNameFormat(trimmedDisplayName)) {
+        displayNameErrors.add('Display name can only contain letters, numbers, spaces, and common punctuation');
+      }
     }
     if (displayNameErrors.isNotEmpty) {
       fieldErrors['displayName'] = displayNameErrors;
@@ -115,6 +122,14 @@ class SignUpRequest {
     final hasLetter = RegExp(r'[a-zA-Z]').hasMatch(password);
     final hasNumber = RegExp(r'[0-9]').hasMatch(password);
     return hasLetter && hasNumber;
+  }
+
+  /// Validates display name format (letters, numbers, spaces, and common punctuation)
+  bool _isValidDisplayNameFormat(String displayName) {
+    // Allow letters (including unicode), numbers, spaces, and common punctuation
+    // This regex allows most international characters while preventing special symbols
+    final displayNameRegex = RegExp(r"^[\p{L}\p{N}\s\.\-_']+$", unicode: true);
+    return displayNameRegex.hasMatch(displayName);
   }
 
   /// Creates a copy of this SignUpRequest with updated fields
