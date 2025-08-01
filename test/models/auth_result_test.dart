@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:question_auth/src/models/auth_result.dart';
 import 'package:question_auth/src/models/user.dart';
+import 'package:question_auth/src/models/auth_response.dart';
 
 void main() {
   group('AuthResult Tests', () {
@@ -17,6 +18,8 @@ void main() {
         expect(result.user, user);
         expect(result.error, isNull);
         expect(result.fieldErrors, isNull);
+        expect(result.loginData, isNull);
+        expect(result.signUpData, isNull);
       });
 
       test('should create successful AuthResult without user', () {
@@ -374,6 +377,265 @@ void main() {
         expect(string, contains('AuthResult('));
         expect(string, contains('success: false'));
         expect(string, contains('error: Test error'));
+      });
+    });
+
+    group('enhanced functionality with new API data', () {
+      test('should create AuthResult with LoginResponse data', () {
+        const user = User(
+          email: 'test@example.com',
+          displayName: 'testuser',
+        );
+
+        final loginResponse = LoginResponse(
+          token: 'test-token',
+          user: user,
+          roles: ['Creator', 'Student'],
+          profileComplete: {'creator': true, 'student': false},
+          onboardingComplete: true,
+          incompleteRoles: ['student'],
+          appAccess: 'full',
+          redirectTo: '/dashboard',
+        );
+
+        final result = AuthResult.success(
+          user: user,
+          token: 'test-token',
+          loginData: loginResponse,
+        );
+
+        expect(result.success, true);
+        expect(result.user, user);
+        expect(result.token, 'test-token');
+        expect(result.loginData, loginResponse);
+        expect(result.hasRichUserData, true);
+        expect(result.hasSignUpData, false);
+      });
+
+      test('should create AuthResult with SignUpResponse data', () {
+        final signUpData = SignUpData(
+          email: 'test@example.com',
+          verificationTokenExpiresIn: '10 minutes',
+        );
+
+        final signUpResponse = SignUpResponse(
+          detail: 'Registration successful!',
+          data: signUpData,
+        );
+
+        final result = AuthResult.success(signUpData: signUpResponse);
+
+        expect(result.success, true);
+        expect(result.signUpData, signUpResponse);
+        expect(result.hasSignUpData, true);
+        expect(result.hasRichUserData, false);
+      });
+
+      test('should provide access to user profile data from loginData', () {
+        const user = User(
+          email: 'test@example.com',
+          displayName: 'testuser',
+        );
+
+        final loginResponse = LoginResponse(
+          token: 'test-token',
+          user: user,
+          roles: ['Creator', 'Student'],
+          profileComplete: {'creator': true, 'student': false},
+          onboardingComplete: true,
+          incompleteRoles: ['student'],
+          appAccess: 'full',
+          redirectTo: '/dashboard',
+        );
+
+        final result = AuthResult.success(loginData: loginResponse);
+
+        expect(result.userRoles, ['Creator', 'Student']);
+        expect(result.profileComplete, {'creator': true, 'student': false});
+        expect(result.onboardingComplete, true);
+        expect(result.incompleteRoles, ['student']);
+        expect(result.appAccess, 'full');
+        expect(result.redirectTo, '/dashboard');
+      });
+
+      test('should return null for profile data when no loginData', () {
+        final result = AuthResult.success();
+
+        expect(result.userRoles, isNull);
+        expect(result.profileComplete, isNull);
+        expect(result.onboardingComplete, isNull);
+        expect(result.incompleteRoles, isNull);
+        expect(result.appAccess, isNull);
+        expect(result.redirectTo, isNull);
+      });
+
+      test('should handle JSON serialization with new fields', () {
+        const user = User(
+          email: 'test@example.com',
+          displayName: 'testuser',
+        );
+
+        final loginResponse = LoginResponse(
+          token: 'test-token',
+          user: user,
+          roles: ['Creator'],
+          profileComplete: {'creator': true},
+          onboardingComplete: true,
+          incompleteRoles: [],
+          appAccess: 'full',
+          redirectTo: '/dashboard',
+        );
+
+        final result = AuthResult.success(
+          user: user,
+          token: 'test-token',
+          loginData: loginResponse,
+        );
+
+        final json = result.toJson();
+
+        expect(json['success'], true);
+        expect(json['user'], user.toJson());
+        expect(json['token'], 'test-token');
+        expect(json['loginData'], loginResponse.toJson());
+        expect(json['signUpData'], isNull);
+      });
+
+      test('should create AuthResult from JSON with new fields', () {
+        const user = User(
+          email: 'test@example.com',
+          displayName: 'testuser',
+        );
+
+        final loginResponseJson = {
+          'token': 'test-token',
+          'user': user.toJson(),
+          'roles': ['Creator'],
+          'profile_complete': {'creator': true},
+          'onboarding_complete': true,
+          'incomplete_roles': <String>[],
+          'app_access': 'full',
+          'redirect_to': '/dashboard',
+        };
+
+        final json = {
+          'success': true,
+          'user': user.toJson(),
+          'token': 'test-token',
+          'loginData': loginResponseJson,
+          'signUpData': null,
+        };
+
+        final result = AuthResult.fromJson(json);
+
+        expect(result.success, true);
+        expect(result.user, isNotNull);
+        expect(result.token, 'test-token');
+        expect(result.loginData, isNotNull);
+        expect(result.loginData!.token, 'test-token');
+        expect(result.loginData!.roles, ['Creator']);
+        expect(result.signUpData, isNull);
+      });
+
+      test('should handle copyWith with new fields', () {
+        final original = AuthResult.success();
+        
+        const user = User(
+          email: 'test@example.com',
+          displayName: 'testuser',
+        );
+
+        final loginResponse = LoginResponse(
+          token: 'new-token',
+          user: user,
+          roles: ['Creator'],
+          profileComplete: {'creator': true},
+          onboardingComplete: true,
+          incompleteRoles: [],
+          appAccess: 'full',
+          redirectTo: '/dashboard',
+        );
+
+        final updated = original.copyWith(
+          token: 'new-token',
+          loginData: loginResponse,
+        );
+
+        expect(updated.token, 'new-token');
+        expect(updated.loginData, loginResponse);
+        expect(updated.success, original.success);
+      });
+
+      test('should handle equality with new fields', () {
+        const user = User(
+          email: 'test@example.com',
+          displayName: 'testuser',
+        );
+
+        final loginResponse = LoginResponse(
+          token: 'test-token',
+          user: user,
+          roles: ['Creator'],
+          profileComplete: {'creator': true},
+          onboardingComplete: true,
+          incompleteRoles: [],
+          appAccess: 'full',
+          redirectTo: '/dashboard',
+        );
+
+        final result1 = AuthResult.success(
+          user: user,
+          token: 'test-token',
+          loginData: loginResponse,
+        );
+
+        final result2 = AuthResult.success(
+          user: user,
+          token: 'test-token',
+          loginData: loginResponse,
+        );
+
+        final result3 = AuthResult.success(
+          user: user,
+          token: 'different-token',
+          loginData: loginResponse,
+        );
+
+        expect(result1, equals(result2));
+        expect(result1.hashCode, equals(result2.hashCode));
+        expect(result1, isNot(equals(result3)));
+      });
+
+      test('should include new fields in toString', () {
+        const user = User(
+          email: 'test@example.com',
+          displayName: 'testuser',
+        );
+
+        final loginResponse = LoginResponse(
+          token: 'test-token',
+          user: user,
+          roles: ['Creator'],
+          profileComplete: {'creator': true},
+          onboardingComplete: true,
+          incompleteRoles: [],
+          appAccess: 'full',
+          redirectTo: '/dashboard',
+        );
+
+        final result = AuthResult.success(
+          user: user,
+          token: 'test-token',
+          loginData: loginResponse,
+        );
+
+        final string = result.toString();
+
+        expect(string, contains('AuthResult('));
+        expect(string, contains('success: true'));
+        expect(string, contains('token: [PRESENT]'));
+        expect(string, contains('loginData: '));
+        expect(string, contains('signUpData: null'));
       });
     });
   });

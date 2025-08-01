@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:connectivity_plus/connectivity_plus.dart';
 import '../core/exceptions.dart';
+import '../models/auth_request.dart';
+import '../models/auth_response.dart';
 
 /// Abstract interface for API client operations
 abstract class ApiClient {
@@ -33,6 +35,41 @@ abstract class ApiClient {
   
   /// Clears the authentication token
   void clearAuthToken();
+
+  // Specific endpoint methods
+
+  /// Registers a new user account
+  /// 
+  /// [request] - The signup request containing user registration data
+  /// 
+  /// Returns [SignUpResponse] with registration details
+  /// Throws [ValidationException] for validation errors
+  /// Throws [ApiException] for API-related errors
+  /// Throws [NetworkException] for network-related errors
+  Future<SignUpResponse> register(SignUpRequest request);
+
+  /// Authenticates a user and returns login information
+  /// 
+  /// [request] - The login request containing user credentials
+  /// 
+  /// Returns [LoginResponse] with authentication token and user profile data
+  /// Throws [ApiException] for authentication failures
+  /// Throws [NetworkException] for network-related errors
+  Future<LoginResponse> login(LoginRequest request);
+
+  /// Gets the current authenticated user's profile information
+  /// 
+  /// Returns [UserProfileResponse] with comprehensive user profile data
+  /// Throws [ApiException] for authentication or authorization errors
+  /// Throws [NetworkException] for network-related errors
+  Future<UserProfileResponse> getCurrentUser();
+
+  /// Logs out the current user and invalidates the token
+  /// 
+  /// Returns [LogoutResponse] with logout confirmation
+  /// Throws [ApiException] for API-related errors
+  /// Throws [NetworkException] for network-related errors
+  Future<LogoutResponse> logout();
 }
 
 /// HTTP implementation of the ApiClient interface
@@ -113,6 +150,46 @@ class HttpApiClient implements ApiClient {
     _authToken = null;
   }
 
+  @override
+  Future<SignUpResponse> register(SignUpRequest request) async {
+    try {
+      final response = await post('/accounts/register/', request.toJson());
+      return SignUpResponse.fromJson(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<LoginResponse> login(LoginRequest request) async {
+    try {
+      final response = await post('/accounts/login/', request.toJson());
+      return LoginResponse.fromJson(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<UserProfileResponse> getCurrentUser() async {
+    try {
+      final response = await get('/accounts/me/');
+      return UserProfileResponse.fromJson(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  @override
+  Future<LogoutResponse> logout() async {
+    try {
+      final response = await post('/logout/', {});
+      return LogoutResponse.fromJson(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   /// Builds the complete URI for the given endpoint
   Uri _buildUri(String endpoint) {
     final cleanEndpoint = endpoint.startsWith('/') ? endpoint.substring(1) : endpoint;
@@ -126,7 +203,7 @@ class HttpApiClient implements ApiClient {
     headers['Accept'] = 'application/json';
     
     if (_authToken != null) {
-      headers['Authorization'] = 'Bearer $_authToken';
+      headers['Authorization'] = 'Token $_authToken';
     }
     
     return headers;
@@ -159,6 +236,14 @@ class HttpApiClient implements ApiClient {
     // Handle specific HTTP status codes with user-friendly messages
     switch (statusCode) {
       case 400:
+        // Handle field-specific validation errors for 400 status
+        if (responseData != null) {
+          final fieldErrors = _parseFieldErrorsFromResponse(responseData);
+          // Only throw ValidationException if we have actual field errors (not just general errors)
+          if (fieldErrors.isNotEmpty && _hasActualFieldErrors(fieldErrors, responseData)) {
+            throw ValidationException(_getUserFriendlyMessage(400, errorMessage), fieldErrors);
+          }
+        }
         throw ApiException(_getUserFriendlyMessage(400, errorMessage), statusCode, errorCode);
       case 401:
         throw ApiException(_getUserFriendlyMessage(401, errorMessage), statusCode, errorCode);
@@ -243,6 +328,82 @@ class HttpApiClient implements ApiClient {
     });
     
     return fieldErrors;
+  }
+
+  /// Parses field-specific errors from API response data
+  /// Handles various error response formats from the API
+  Map<String, List<String>> _parseFieldErrorsFromResponse(Map<String, dynamic> responseData) {
+    final fieldErrors = <String, List<String>>{};
+    
+    // Check for direct field errors (e.g., {"email": ["user with this email already exists."]})
+    responseData.forEach((key, value) {
+      // Skip non-field keys like 'detail', 'message', 'code', etc.
+      if (_isFieldErrorKey(key)) {
+        if (value is List) {
+          fieldErrors[key] = value.map((e) => e.toString()).toList();
+        } else if (value is String) {
+          fieldErrors[key] = [value];
+        } else if (value != null) {
+          fieldErrors[key] = [value.toString()];
+        }
+      }
+    });
+    
+    // Check for nested errors object
+    if (responseData.containsKey('errors') && responseData['errors'] is Map<String, dynamic>) {
+      final nestedErrors = responseData['errors'] as Map<String, dynamic>;
+      final parsedNestedErrors = _parseFieldErrors(nestedErrors);
+      fieldErrors.addAll(parsedNestedErrors);
+    }
+    
+    return fieldErrors;
+  }
+
+  /// Determines if a response key represents a field error
+  bool _isFieldErrorKey(String key) {
+    // Common non-field keys that should not be treated as field errors
+    const nonFieldKeys = {
+      'detail',
+      'message',
+      'error',
+      'code',
+      'status',
+      'success',
+      'data',
+      'errors',
+      'non_field_errors',
+      '__all__',
+    };
+    
+    return !nonFieldKeys.contains(key.toLowerCase());
+  }
+
+  /// Determines if the field errors represent actual field validation errors
+  /// vs general error messages that happen to be in field-like format
+  bool _hasActualFieldErrors(Map<String, List<String>> fieldErrors, Map<String, dynamic> responseData) {
+    // If we have a nested 'errors' object, it's likely field validation errors
+    if (responseData.containsKey('errors') && responseData['errors'] is Map<String, dynamic>) {
+      return true;
+    }
+    
+    // If we have multiple field errors, it's likely validation errors
+    if (fieldErrors.length > 1) {
+      return true;
+    }
+    
+    // If we have common field names, it's likely validation errors
+    const commonFieldNames = {
+      'email', 'password', 'username', 'display_name', 'confirm_password',
+      'first_name', 'last_name', 'phone', 'address', 'name'
+    };
+    
+    for (final fieldName in fieldErrors.keys) {
+      if (commonFieldNames.contains(fieldName.toLowerCase())) {
+        return true;
+      }
+    }
+    
+    return false;
   }
 
   /// Returns user-friendly error messages based on status code

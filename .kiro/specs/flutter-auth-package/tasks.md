@@ -22,16 +22,16 @@
     - Write unit tests for all new response models
     - _Requirements: 2.2, 2.6, 3.2, 3.5, 3.6, 4.2, 4.5, 4.6_
 
-- [ ] 2. Update AuthResult model for enhanced functionality
-  - [ ] 2.1 Enhance AuthResult with new API data
+- [x] 2. Update AuthResult model for enhanced functionality
+  - [x] 2.1 Enhance AuthResult with new API data
     - Add loginData field to store LoginResponse information
     - Add signUpData field to store SignUpResponse information
     - Update AuthResult to handle rich user profile data
     - Write unit tests for enhanced AuthResult model
     - _Requirements: 3.5, 3.6, 8.1, 8.2_
 
-- [ ] 3. Update API client for new endpoints
-  - [ ] 3.1 Update ApiClient interface with specific endpoint methods
+- [x] 3. Update API client for new endpoints
+  - [x] 3.1 Update ApiClient interface with specific endpoint methods
     - Add register(), login(), getCurrentUser(), logout() methods to ApiClient interface
     - Update HttpApiClient implementation to handle new API endpoints
     - Implement proper request/response handling for each endpoint
@@ -39,7 +39,7 @@
     - Write unit tests for new endpoint methods
     - _Requirements: 2.1, 3.1, 4.1, 5.1_
 
-  - [ ] 3.2 Implement field-specific error handling
+  - [x] 3.2 Implement field-specific error handling
     - Update error parsing to handle field-specific errors (e.g., email already exists)
     - Implement proper error response parsing for validation errors
     - Update ValidationException to handle field-specific error messages

@@ -167,13 +167,40 @@ class AuthResult {
     return errors != null && errors.isNotEmpty ? errors.first : null;
   }
 
+  /// Gets user roles from login data
+  List<String>? get userRoles => loginData?.roles;
+
+  /// Gets profile completion status from login data
+  Map<String, bool>? get profileComplete => loginData?.profileComplete;
+
+  /// Gets onboarding completion status from login data
+  bool? get onboardingComplete => loginData?.onboardingComplete;
+
+  /// Gets app access level from login data
+  String? get appAccess => loginData?.appAccess;
+
+  /// Gets redirect information from login data
+  String? get redirectTo => loginData?.redirectTo;
+
+  /// Gets incomplete roles from login data
+  List<String>? get incompleteRoles => loginData?.incompleteRoles;
+
+  /// Returns true if this result contains rich user profile data
+  bool get hasRichUserData => loginData != null;
+
+  /// Returns true if this result contains signup data
+  bool get hasSignUpData => signUpData != null;
+
   /// Converts AuthResult to JSON
   Map<String, dynamic> toJson() {
     return {
       'success': success,
       'user': user?.toJson(),
+      'token': token,
       'error': error,
       'fieldErrors': fieldErrors,
+      'loginData': loginData?.toJson(),
+      'signUpData': signUpData?.toJson(),
     };
   }
 
@@ -182,8 +209,11 @@ class AuthResult {
     return AuthResult(
       success: json['success'] == true,
       user: json['user'] != null ? User.fromJson(json['user']) : null,
+      token: json['token']?.toString(),
       error: json['error']?.toString(),
       fieldErrors: _parseFieldErrors(json['fieldErrors']),
+      loginData: json['loginData'] != null ? LoginResponse.fromJson(json['loginData']) : null,
+      signUpData: json['signUpData'] != null ? SignUpResponse.fromJson(json['signUpData']) : null,
     );
   }
 
@@ -191,14 +221,20 @@ class AuthResult {
   AuthResult copyWith({
     bool? success,
     User? user,
+    String? token,
     String? error,
     Map<String, List<String>>? fieldErrors,
+    LoginResponse? loginData,
+    SignUpResponse? signUpData,
   }) {
     return AuthResult(
       success: success ?? this.success,
       user: user ?? this.user,
+      token: token ?? this.token,
       error: error ?? this.error,
       fieldErrors: fieldErrors ?? this.fieldErrors,
+      loginData: loginData ?? this.loginData,
+      signUpData: signUpData ?? this.signUpData,
     );
   }
 
@@ -208,8 +244,11 @@ class AuthResult {
     return other is AuthResult &&
         other.success == success &&
         other.user == user &&
+        other.token == token &&
         other.error == error &&
-        _mapEquals(other.fieldErrors, fieldErrors);
+        _mapEquals(other.fieldErrors, fieldErrors) &&
+        other.loginData == loginData &&
+        other.signUpData == signUpData;
   }
 
   /// Helper method to compare maps with list values
@@ -232,11 +271,11 @@ class AuthResult {
 
   @override
   int get hashCode {
-    return Object.hash(success, user, error, fieldErrors);
+    return Object.hash(success, user, token, error, fieldErrors, loginData, signUpData);
   }
 
   @override
   String toString() {
-    return 'AuthResult(success: $success, user: $user, error: $error, fieldErrors: $fieldErrors)';
+    return 'AuthResult(success: $success, user: $user, token: ${token != null ? '[PRESENT]' : 'null'}, error: $error, fieldErrors: $fieldErrors, loginData: $loginData, signUpData: $signUpData)';
   }
 }

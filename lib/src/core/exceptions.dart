@@ -27,6 +27,87 @@ class ValidationException extends AuthException {
   
   const ValidationException(String message, this.fieldErrors) 
       : super(message, 'VALIDATION_ERROR');
+
+  /// Gets all error messages for a specific field
+  /// Returns an empty list if the field has no errors
+  List<String> getFieldErrors(String fieldName) {
+    return fieldErrors[fieldName] ?? [];
+  }
+
+  /// Gets the first error message for a specific field
+  /// Returns null if the field has no errors
+  String? getFirstFieldError(String fieldName) {
+    final errors = getFieldErrors(fieldName);
+    return errors.isNotEmpty ? errors.first : null;
+  }
+
+  /// Checks if a specific field has validation errors
+  bool hasFieldError(String fieldName) {
+    return fieldErrors.containsKey(fieldName) && fieldErrors[fieldName]!.isNotEmpty;
+  }
+
+  /// Gets all field names that have validation errors
+  List<String> get errorFields => fieldErrors.entries
+      .where((entry) => entry.value.isNotEmpty)
+      .map((entry) => entry.key)
+      .toList();
+
+  /// Gets all error messages as a flat list
+  List<String> get allErrorMessages {
+    final List<String> allErrors = [];
+    fieldErrors.forEach((field, errors) {
+      allErrors.addAll(errors);
+    });
+    return allErrors;
+  }
+
+  /// Gets the first error message from any field
+  /// Returns null if there are no errors
+  String? get firstErrorMessage {
+    for (final errors in fieldErrors.values) {
+      if (errors.isNotEmpty) {
+        return errors.first;
+      }
+    }
+    return null;
+  }
+
+  /// Gets the total number of validation errors across all fields
+  int get totalErrorCount {
+    return fieldErrors.values.fold(0, (sum, errors) => sum + errors.length);
+  }
+
+  /// Creates a user-friendly error message that combines all field errors
+  String get detailedMessage {
+    if (fieldErrors.isEmpty) {
+      return message;
+    }
+
+    final buffer = StringBuffer();
+    if (message.isNotEmpty) {
+      buffer.writeln(message);
+    }
+
+    fieldErrors.forEach((field, errors) {
+      final fieldName = _formatFieldName(field);
+      for (final error in errors) {
+        buffer.writeln('• $fieldName: $error');
+      }
+    });
+
+    return buffer.toString().trim();
+  }
+
+  /// Formats field names for user-friendly display
+  String _formatFieldName(String fieldName) {
+    // Convert snake_case and camelCase to Title Case
+    return fieldName
+        .replaceAll('_', ' ')
+        .replaceAllMapped(RegExp(r'([a-z])([A-Z])'), (match) => '${match.group(1)} ${match.group(2)}')
+        .split(' ')
+        .map((word) => word.isEmpty ? '' : word[0].toUpperCase() + word.substring(1).toLowerCase())
+        .join(' ');
+  }
   
   @override
   String toString() => 'ValidationException: $message';

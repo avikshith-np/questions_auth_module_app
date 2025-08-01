@@ -62,6 +62,147 @@ void main() {
       
       expect(exception, isA<AuthException>());
     });
+
+    group('Field-specific error methods', () {
+      late ValidationException exception;
+
+      setUp(() {
+        final fieldErrors = {
+          'email': ['Invalid email format', 'Email is required'],
+          'password': ['Password too short'],
+          'display_name': ['Display name already taken'],
+          'empty_field': <String>[],
+        };
+        exception = ValidationException('Validation failed', fieldErrors);
+      });
+
+      test('getFieldErrors should return errors for existing field', () {
+        final emailErrors = exception.getFieldErrors('email');
+        expect(emailErrors, equals(['Invalid email format', 'Email is required']));
+        
+        final passwordErrors = exception.getFieldErrors('password');
+        expect(passwordErrors, equals(['Password too short']));
+      });
+
+      test('getFieldErrors should return empty list for non-existing field', () {
+        final errors = exception.getFieldErrors('non_existing_field');
+        expect(errors, isEmpty);
+      });
+
+      test('getFieldErrors should return empty list for field with empty errors', () {
+        final errors = exception.getFieldErrors('empty_field');
+        expect(errors, isEmpty);
+      });
+
+      test('getFirstFieldError should return first error for existing field', () {
+        final firstEmailError = exception.getFirstFieldError('email');
+        expect(firstEmailError, equals('Invalid email format'));
+        
+        final firstPasswordError = exception.getFirstFieldError('password');
+        expect(firstPasswordError, equals('Password too short'));
+      });
+
+      test('getFirstFieldError should return null for non-existing field', () {
+        final error = exception.getFirstFieldError('non_existing_field');
+        expect(error, isNull);
+      });
+
+      test('getFirstFieldError should return null for field with empty errors', () {
+        final error = exception.getFirstFieldError('empty_field');
+        expect(error, isNull);
+      });
+
+      test('hasFieldError should return true for fields with errors', () {
+        expect(exception.hasFieldError('email'), isTrue);
+        expect(exception.hasFieldError('password'), isTrue);
+        expect(exception.hasFieldError('display_name'), isTrue);
+      });
+
+      test('hasFieldError should return false for fields without errors', () {
+        expect(exception.hasFieldError('non_existing_field'), isFalse);
+        expect(exception.hasFieldError('empty_field'), isFalse);
+      });
+
+      test('errorFields should return all field names with errors', () {
+        final fields = exception.errorFields;
+        expect(fields, containsAll(['email', 'password', 'display_name']));
+        expect(fields, isNot(contains('empty_field')));
+        expect(fields.length, equals(3)); // Excluding empty_field
+      });
+
+      test('allErrorMessages should return all error messages as flat list', () {
+        final allErrors = exception.allErrorMessages;
+        expect(allErrors, containsAll([
+          'Invalid email format',
+          'Email is required',
+          'Password too short',
+          'Display name already taken'
+        ]));
+        expect(allErrors.length, equals(4));
+      });
+
+      test('firstErrorMessage should return first error from any field', () {
+        final firstError = exception.firstErrorMessage;
+        expect(firstError, isNotNull);
+        expect(['Invalid email format', 'Password too short', 'Display name already taken'], 
+               contains(firstError));
+      });
+
+      test('firstErrorMessage should return null for exception with no errors', () {
+        final emptyException = ValidationException('No errors', {});
+        expect(emptyException.firstErrorMessage, isNull);
+      });
+
+      test('totalErrorCount should return total number of errors', () {
+        expect(exception.totalErrorCount, equals(4));
+      });
+
+      test('totalErrorCount should return 0 for exception with no errors', () {
+        final emptyException = ValidationException('No errors', {});
+        expect(emptyException.totalErrorCount, equals(0));
+      });
+
+      test('detailedMessage should format field errors nicely', () {
+        final detailed = exception.detailedMessage;
+        expect(detailed, contains('Validation failed'));
+        expect(detailed, contains('• Email: Invalid email format'));
+        expect(detailed, contains('• Email: Email is required'));
+        expect(detailed, contains('• Password: Password too short'));
+        expect(detailed, contains('• Display Name: Display name already taken'));
+      });
+
+      test('detailedMessage should handle exception with no main message', () {
+        final fieldErrors = {
+          'email': ['Invalid email format'],
+        };
+        final noMessageException = ValidationException('', fieldErrors);
+        final detailed = noMessageException.detailedMessage;
+        expect(detailed, equals('• Email: Invalid email format'));
+      });
+
+      test('detailedMessage should return main message when no field errors', () {
+        final noFieldsException = ValidationException('General error', {});
+        expect(noFieldsException.detailedMessage, equals('General error'));
+      });
+
+      test('should format field names correctly', () {
+        final fieldErrors = {
+          'email_address': ['Invalid email'],
+          'firstName': ['Required'],
+          'last_name': ['Too short'],
+          'confirmPassword': ['Does not match'],
+          'phone_number': ['Invalid format'],
+        };
+        final exception = ValidationException('Test', fieldErrors);
+        final detailed = exception.detailedMessage;
+        
+        expect(detailed, contains('• Email Address: Invalid email'));
+        expect(detailed, contains('• First Name: Required'));
+        expect(detailed, contains('• Last Name: Too short'));
+        expect(detailed, contains('• Confirm Password: Does not match'));
+        expect(detailed, contains('• Phone Number: Invalid format'));
+      });
+    });
   });
 
   group('ApiException', () {

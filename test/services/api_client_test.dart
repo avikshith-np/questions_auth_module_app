@@ -6,6 +6,9 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:question_auth/src/services/api_client.dart';
 import 'package:question_auth/src/core/exceptions.dart';
+import 'package:question_auth/src/models/auth_request.dart';
+import 'package:question_auth/src/models/auth_response.dart';
+import 'package:question_auth/src/models/user.dart';
 
 import 'api_client_test.mocks.dart';
 
@@ -104,7 +107,7 @@ void main() {
         verify(mockClient.post(
           any,
           headers: argThat(
-            containsPair('Authorization', 'Bearer $token'),
+            containsPair('Authorization', 'Token $token'),
             named: 'headers',
           ),
           body: anyNamed('body'),
@@ -213,7 +216,7 @@ void main() {
         verify(mockClient.get(
           any,
           headers: argThat(
-            containsPair('Authorization', 'Bearer $token'),
+            containsPair('Authorization', 'Token $token'),
             named: 'headers',
           ),
         )).called(1);
@@ -662,8 +665,9 @@ void main() {
           // Act & Assert
           expect(
             () => apiClient.get('test'),
-            throwsA(isA<ApiException>()
-                .having((e) => e.message, 'message', equals('Email error'))),
+            throwsA(isA<ValidationException>()
+                .having((e) => e.fieldErrors['email'], 'email errors', equals(['Email error']))
+                .having((e) => e.fieldErrors['password'], 'password errors', equals(['Password error']))),
           );
         });
 
@@ -951,6 +955,483 @@ void main() {
             expect(result, equals(responseData));
           }
         }
+      });
+    });
+
+    group('Specific endpoint methods', () {
+      group('register', () {
+        test('should make successful registration request', () async {
+          // Arrange
+          final request = SignUpRequest(
+            email: 'test@example.com',
+            displayName: 'Test User',
+            password: 'password123',
+            confirmPassword: 'password123',
+          );
+          final responseData = {
+            'detail': 'Registration successful! Please check your email to verify your account.',
+            'data': {
+              'email': 'test@example.com',
+              'verification_token_expires_in': '10 minutes'
+            }
+          };
+          
+          when(mockClient.post(
+            Uri.parse('$baseUrl/accounts/register/'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(responseData),
+            200,
+            headers: {'content-type': 'application/json'},
+          ));
+
+          // Act
+          final result = await apiClient.register(request);
+
+          // Assert
+          expect(result.detail, equals('Registration successful! Please check your email to verify your account.'));
+          expect(result.data?.email, equals('test@example.com'));
+          expect(result.data?.verificationTokenExpiresIn, equals('10 minutes'));
+          
+          verify(mockClient.post(
+            Uri.parse('$baseUrl/accounts/register/'),
+            headers: argThat(
+              allOf([
+                containsPair('Content-Type', 'application/json'),
+                containsPair('Accept', 'application/json'),
+              ]),
+              named: 'headers',
+            ),
+            body: jsonEncode(request.toJson()),
+          )).called(1);
+        });
+
+        test('should handle registration validation errors', () async {
+          // Arrange
+          final request = SignUpRequest(
+            email: 'invalid-email',
+            displayName: 'Test User',
+            password: 'password123',
+            confirmPassword: 'password123',
+          );
+          final errorResponse = {
+            'email': ['user with this email already exists.']
+          };
+          
+          when(mockClient.post(
+            Uri.parse('$baseUrl/accounts/register/'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            400,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.register(request),
+            throwsA(isA<ValidationException>()
+                .having((e) => e.fieldErrors['email'], 'email errors', 
+                        equals(['user with this email already exists.']))),
+          );
+        });
+      });
+
+      group('login', () {
+        test('should make successful login request', () async {
+          // Arrange
+          final request = LoginRequest(
+            email: 'test@example.com',
+            password: 'password123',
+          );
+          final responseData = {
+            'token': '879c09f82dd58f9dd3552e33abf3f015f2c8e804',
+            'user': {
+              'email': 'test@example.com',
+              'display_name': 'Test User',
+              'is_verified': true,
+              'is_new': false
+            },
+            'roles': ['Creator'],
+            'profile_complete': {
+              'student': false,
+              'creator': true
+            },
+            'onboarding_complete': true,
+            'incomplete_roles': [],
+            'app_access': 'full',
+            'redirect_to': '/dashboard'
+          };
+          
+          when(mockClient.post(
+            Uri.parse('$baseUrl/accounts/login/'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(responseData),
+            200,
+            headers: {'content-type': 'application/json'},
+          ));
+
+          // Act
+          final result = await apiClient.login(request);
+
+          // Assert
+          expect(result.token, equals('879c09f82dd58f9dd3552e33abf3f015f2c8e804'));
+          expect(result.user.email, equals('test@example.com'));
+          expect(result.user.displayName, equals('Test User'));
+          expect(result.roles, equals(['Creator']));
+          expect(result.profileComplete['creator'], equals(true));
+          expect(result.onboardingComplete, equals(true));
+          expect(result.appAccess, equals('full'));
+          expect(result.redirectTo, equals('/dashboard'));
+          
+          verify(mockClient.post(
+            Uri.parse('$baseUrl/accounts/login/'),
+            headers: argThat(
+              allOf([
+                containsPair('Content-Type', 'application/json'),
+                containsPair('Accept', 'application/json'),
+              ]),
+              named: 'headers',
+            ),
+            body: jsonEncode(request.toJson()),
+          )).called(1);
+        });
+
+        test('should handle login authentication errors', () async {
+          // Arrange
+          final request = LoginRequest(
+            email: 'test@example.com',
+            password: 'wrongpassword',
+          );
+          final errorResponse = {
+            'detail': 'Invalid credentials'
+          };
+          
+          when(mockClient.post(
+            Uri.parse('$baseUrl/accounts/login/'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            401,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.login(request),
+            throwsA(isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', equals(401))
+                .having((e) => e.message, 'message', equals('Invalid credentials'))),
+          );
+        });
+      });
+
+      group('getCurrentUser', () {
+        test('should make successful get current user request', () async {
+          // Arrange
+          const token = 'test-token-123';
+          apiClient.setAuthToken(token);
+          
+          final responseData = {
+            'user': {
+              'email': 'test@example.com',
+              'display_name': 'Test User',
+              'is_active': true,
+              'email_verified': true,
+              'date_joined': '2024-01-01T00:00:00Z'
+            },
+            'is_new': false,
+            'mode': 'student',
+            'roles': ['student', 'creator'],
+            'available_roles': ['creator'],
+            'removable_roles': [],
+            'profile_complete': {
+              'student': true,
+              'creator': false
+            },
+            'onboarding_complete': true,
+            'incomplete_roles': ['creator'],
+            'app_access': 'full',
+            'viewType': 'student-complete-student-only',
+            'redirect_to': '/onboarding/profile'
+          };
+          
+          when(mockClient.get(
+            Uri.parse('$baseUrl/accounts/me/'),
+            headers: anyNamed('headers'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(responseData),
+            200,
+            headers: {'content-type': 'application/json'},
+          ));
+
+          // Act
+          final result = await apiClient.getCurrentUser();
+
+          // Assert
+          expect(result.user.email, equals('test@example.com'));
+          expect(result.user.displayName, equals('Test User'));
+          expect(result.isNew, equals(false));
+          expect(result.mode, equals('student'));
+          expect(result.roles, equals(['student', 'creator']));
+          expect(result.availableRoles, equals(['creator']));
+          expect(result.profileComplete['student'], equals(true));
+          expect(result.onboardingComplete, equals(true));
+          expect(result.appAccess, equals('full'));
+          expect(result.viewType, equals('student-complete-student-only'));
+          expect(result.redirectTo, equals('/onboarding/profile'));
+          
+          verify(mockClient.get(
+            Uri.parse('$baseUrl/accounts/me/'),
+            headers: argThat(
+              allOf([
+                containsPair('Content-Type', 'application/json'),
+                containsPair('Accept', 'application/json'),
+                containsPair('Authorization', 'Token $token'),
+              ]),
+              named: 'headers',
+            ),
+          )).called(1);
+        });
+
+        test('should handle unauthorized access', () async {
+          // Arrange
+          final errorResponse = {
+            'detail': 'Authentication credentials were not provided.'
+          };
+          
+          when(mockClient.get(
+            Uri.parse('$baseUrl/accounts/me/'),
+            headers: anyNamed('headers'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            401,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.getCurrentUser(),
+            throwsA(isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', equals(401))
+                .having((e) => e.message, 'message', equals('Authentication credentials were not provided.'))),
+          );
+        });
+      });
+
+      group('logout', () {
+        test('should make successful logout request', () async {
+          // Arrange
+          const token = 'test-token-123';
+          apiClient.setAuthToken(token);
+          
+          final responseData = {
+            'detail': 'Logged out successfully.'
+          };
+          
+          when(mockClient.post(
+            Uri.parse('$baseUrl/logout/'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(responseData),
+            200,
+            headers: {'content-type': 'application/json'},
+          ));
+
+          // Act
+          final result = await apiClient.logout();
+
+          // Assert
+          expect(result.detail, equals('Logged out successfully.'));
+          
+          verify(mockClient.post(
+            Uri.parse('$baseUrl/logout/'),
+            headers: argThat(
+              allOf([
+                containsPair('Content-Type', 'application/json'),
+                containsPair('Accept', 'application/json'),
+                containsPair('Authorization', 'Token $token'),
+              ]),
+              named: 'headers',
+            ),
+            body: jsonEncode({}),
+          )).called(1);
+        });
+
+        test('should handle logout errors gracefully', () async {
+          // Arrange
+          const token = 'test-token-123';
+          apiClient.setAuthToken(token);
+          
+          final errorResponse = {
+            'detail': 'Token is invalid or expired.'
+          };
+          
+          when(mockClient.post(
+            Uri.parse('$baseUrl/logout/'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            401,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.logout(),
+            throwsA(isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', equals(401))
+                .having((e) => e.message, 'message', equals('Token is invalid or expired.'))),
+          );
+        });
+      });
+
+      group('Field-specific error handling', () {
+        test('should parse field-specific errors from 400 response', () async {
+          // Arrange
+          final request = SignUpRequest(
+            email: 'existing@example.com',
+            displayName: 'Test User',
+            password: 'password123',
+            confirmPassword: 'password123',
+          );
+          final errorResponse = {
+            'email': ['user with this email already exists.'],
+            'display_name': ['This display name is already taken.']
+          };
+          
+          when(mockClient.post(
+            Uri.parse('$baseUrl/accounts/register/'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            400,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.register(request),
+            throwsA(isA<ValidationException>()
+                .having((e) => e.fieldErrors['email'], 'email errors', 
+                        equals(['user with this email already exists.']))
+                .having((e) => e.fieldErrors['display_name'], 'display_name errors', 
+                        equals(['This display name is already taken.']))),
+          );
+        });
+
+        test('should handle mixed field error formats', () async {
+          // Arrange
+          final request = LoginRequest(
+            email: 'test@example.com',
+            password: 'password123',
+          );
+          final errorResponse = {
+            'email': 'Invalid email format',
+            'password': ['Password is too short', 'Password must contain numbers'],
+            'non_field_errors': ['Account is temporarily locked']
+          };
+          
+          when(mockClient.post(
+            Uri.parse('$baseUrl/accounts/login/'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            400,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.login(request),
+            throwsA(isA<ValidationException>()
+                .having((e) => e.fieldErrors['email'], 'email errors', 
+                        equals(['Invalid email format']))
+                .having((e) => e.fieldErrors['password'], 'password errors', 
+                        equals(['Password is too short', 'Password must contain numbers']))
+                .having((e) => e.fieldErrors.containsKey('non_field_errors'), 'has non_field_errors', 
+                        equals(false))), // non_field_errors should be filtered out
+          );
+        });
+
+        test('should handle nested errors object', () async {
+          // Arrange
+          final request = SignUpRequest(
+            email: 'test@example.com',
+            displayName: 'Test User',
+            password: 'password123',
+            confirmPassword: 'password123',
+          );
+          final errorResponse = {
+            'detail': 'Validation failed',
+            'errors': {
+              'email': ['Email is required'],
+              'password': ['Password is too weak']
+            }
+          };
+          
+          when(mockClient.post(
+            Uri.parse('$baseUrl/accounts/register/'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            400,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.register(request),
+            throwsA(isA<ValidationException>()
+                .having((e) => e.fieldErrors['email'], 'email errors', 
+                        equals(['Email is required']))
+                .having((e) => e.fieldErrors['password'], 'password errors', 
+                        equals(['Password is too weak']))),
+          );
+        });
+
+        test('should ignore non-field keys in error response', () async {
+          // Arrange
+          final request = LoginRequest(
+            email: 'test@example.com',
+            password: 'password123',
+          );
+          final errorResponse = {
+            'detail': 'Request failed',
+            'message': 'Validation error',
+            'code': 'VALIDATION_ERROR',
+            'status': 'error',
+            'email': ['Invalid email'],
+            'password': ['Invalid password']
+          };
+          
+          when(mockClient.post(
+            Uri.parse('$baseUrl/accounts/login/'),
+            headers: anyNamed('headers'),
+            body: anyNamed('body'),
+          )).thenAnswer((_) async => http.Response(
+            jsonEncode(errorResponse),
+            400,
+          ));
+
+          // Act & Assert
+          expect(
+            () => apiClient.login(request),
+            throwsA(isA<ValidationException>()
+                .having((e) => e.fieldErrors.keys.length, 'field error count', equals(2))
+                .having((e) => e.fieldErrors['email'], 'email errors', 
+                        equals(['Invalid email']))
+                .having((e) => e.fieldErrors['password'], 'password errors', 
+                        equals(['Invalid password']))
+                .having((e) => e.fieldErrors.containsKey('detail'), 'has detail', equals(false))
+                .having((e) => e.fieldErrors.containsKey('message'), 'has message', equals(false))
+                .having((e) => e.fieldErrors.containsKey('code'), 'has code', equals(false))
+                .having((e) => e.fieldErrors.containsKey('status'), 'has status', equals(false))),
+          );
+        });
       });
     });
   });
