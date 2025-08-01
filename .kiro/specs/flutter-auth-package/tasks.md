@@ -63,8 +63,8 @@
     - Write unit tests for enhanced state management
     - _Requirements: 6.3, 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 6. Update authentication service for enhanced functionality
-  - [ ] 6.1 Update AuthService interface with user profile methods
+- [-] 6. Update authentication service for enhanced functionality
+  - [x] 6.1 Update AuthService interface with user profile methods
     - Add methods to access user roles, profile completion status
     - Add methods to get onboarding status and app access information
     - Update AuthServiceImpl to handle rich user profile data

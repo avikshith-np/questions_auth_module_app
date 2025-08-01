@@ -3,6 +3,7 @@ import 'dart:async';
 import '../models/auth_request.dart';
 import '../models/auth_result.dart';
 import '../models/user.dart';
+import '../models/auth_response.dart';
 import '../core/auth_state.dart';
 import '../repositories/auth_repository.dart';
 import '../core/exceptions.dart';
@@ -10,13 +11,30 @@ import '../core/exceptions.dart';
 abstract class AuthService {
   Future<AuthResult> signUp(SignUpRequest request);
   Future<AuthResult> login(LoginRequest request);
-  Future<User> getCurrentUser();
+  Future<UserProfileResponse> getCurrentUser();
   Future<void> logout();
   Stream<AuthState> get authStateStream;
   bool get isAuthenticated;
   User? get currentUser;
   AuthState get currentAuthState;
   Future<void> initialize();
+  
+  // User profile methods
+  List<String>? get userRoles;
+  Map<String, bool>? get profileComplete;
+  bool? get onboardingComplete;
+  String? get appAccess;
+  List<String>? get availableRoles;
+  List<String>? get incompleteRoles;
+  String? get mode;
+  String? get viewType;
+  String? get redirectTo;
+  
+  // Helper methods for user profile information
+  bool hasRole(String role);
+  bool isProfileCompleteForRole(String role);
+  bool get hasFullAppAccess;
+  bool get hasIncompleteRoles;
 }
 
 class AuthServiceImpl implements AuthService {
@@ -41,6 +59,47 @@ class AuthServiceImpl implements AuthService {
   @override
   AuthState get currentAuthState => _stateNotifier.value;
 
+  // User profile methods
+  @override
+  List<String>? get userRoles => _stateNotifier.currentUserRoles;
+
+  @override
+  Map<String, bool>? get profileComplete => _stateNotifier.currentProfileComplete;
+
+  @override
+  bool? get onboardingComplete => _stateNotifier.currentOnboardingComplete;
+
+  @override
+  String? get appAccess => _stateNotifier.currentAppAccess;
+
+  @override
+  List<String>? get availableRoles => _stateNotifier.currentAvailableRoles;
+
+  @override
+  List<String>? get incompleteRoles => _stateNotifier.currentIncompleteRoles;
+
+  @override
+  String? get mode => _stateNotifier.currentMode;
+
+  @override
+  String? get viewType => _stateNotifier.currentViewType;
+
+  @override
+  String? get redirectTo => _stateNotifier.currentRedirectTo;
+
+  // Helper methods for user profile information
+  @override
+  bool hasRole(String role) => currentAuthState.hasRole(role);
+
+  @override
+  bool isProfileCompleteForRole(String role) => currentAuthState.isProfileCompleteForRole(role);
+
+  @override
+  bool get hasFullAppAccess => currentAuthState.hasFullAppAccess;
+
+  @override
+  bool get hasIncompleteRoles => currentAuthState.hasIncompleteRoles;
+
   @override
   Future<void> initialize() async {
     try {
@@ -61,8 +120,8 @@ class AuthServiceImpl implements AuthService {
       }
       
       // Try to get current user with stored token
-      final user = await _repository.getCurrentUser();
-      _stateNotifier.setAuthenticated(user);
+      final userProfile = await _repository.getCurrentUser();
+      _stateNotifier.setAuthenticatedFromUserProfileResponse(userProfile);
     } on TokenException catch (e) {
       // Token is invalid or expired, clear it
       await _repository.clearExpiredToken();
@@ -89,18 +148,14 @@ class AuthServiceImpl implements AuthService {
   Future<AuthResult> signUp(SignUpRequest request) async {
     try {
       _stateNotifier.clearError();
-      final authResponse = await _repository.signUp(request);
+      final signUpResult = await _repository.signUp(request);
       
-      if (authResponse.success && authResponse.user != null) {
-        _stateNotifier.setAuthenticated(authResponse.user!);
-        return AuthResult.success(user: authResponse.user);
+      if (signUpResult.success) {
+        return signUpResult;
       } else {
-        final errorMessage = authResponse.message ?? 'Signup failed';
+        final errorMessage = signUpResult.error ?? 'Signup failed';
         _stateNotifier.setUnauthenticated(errorMessage);
-        return AuthResult.failure(
-          error: errorMessage,
-          fieldErrors: authResponse.errors,
-        );
+        return signUpResult;
       }
     } on ValidationException catch (e) {
       _stateNotifier.setUnauthenticated(e.message);
@@ -125,18 +180,15 @@ class AuthServiceImpl implements AuthService {
   Future<AuthResult> login(LoginRequest request) async {
     try {
       _stateNotifier.clearError();
-      final authResponse = await _repository.login(request);
+      final loginResult = await _repository.login(request);
       
-      if (authResponse.success && authResponse.user != null) {
-        _stateNotifier.setAuthenticated(authResponse.user!);
-        return AuthResult.success(user: authResponse.user);
+      if (loginResult.success && loginResult.user != null && loginResult.loginData != null) {
+        _stateNotifier.setAuthenticatedFromLoginResponse(loginResult.loginData!);
+        return loginResult;
       } else {
-        final errorMessage = authResponse.message ?? 'Login failed';
+        final errorMessage = loginResult.error ?? 'Login failed';
         _stateNotifier.setUnauthenticated(errorMessage);
-        return AuthResult.failure(
-          error: errorMessage,
-          fieldErrors: authResponse.errors,
-        );
+        return loginResult;
       }
     } on ValidationException catch (e) {
       _stateNotifier.setUnauthenticated(e.message);
@@ -158,11 +210,11 @@ class AuthServiceImpl implements AuthService {
   }
 
   @override
-  Future<User> getCurrentUser() async {
+  Future<UserProfileResponse> getCurrentUser() async {
     try {
-      final user = await _repository.getCurrentUser();
-      _stateNotifier.setAuthenticated(user);
-      return user;
+      final userProfile = await _repository.getCurrentUser();
+      _stateNotifier.setAuthenticatedFromUserProfileResponse(userProfile);
+      return userProfile;
     } on TokenException catch (e) {
       _stateNotifier.setUnauthenticated(e.message);
       rethrow;
