@@ -72,8 +72,8 @@
     - Write unit tests for enhanced authentication service
     - _Requirements: 1.1, 1.2, 3.5, 3.6, 4.5, 4.6, 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 7. Update QuestionAuth facade for new API functionality
-  - [ ] 7.1 Enhance QuestionAuth with user profile access methods
+- [x] 7. Update QuestionAuth facade for new API functionality
+  - [x] 7.1 Enhance QuestionAuth with user profile access methods
     - Add userRoles, profileComplete, onboardingComplete properties
     - Add appAccess property and related getter methods
     - Update getCurrentUser method to return UserProfileResponse

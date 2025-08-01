@@ -1,8 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mockito/mockito.dart';
+import 'package:mockito/annotations.dart';
 
 import '../../lib/src/services/question_auth.dart';
 import '../../lib/src/models/auth_request.dart';
+import '../../lib/src/models/auth_response.dart';
+import '../../lib/src/models/user.dart';
 import '../../lib/src/core/auth_state.dart';
+import '../../lib/src/services/auth_service.dart';
+
+@GenerateMocks([AuthService])
+import 'question_auth_test.mocks.dart';
 
 void main() {
   group('QuestionAuth', () {
@@ -70,7 +78,7 @@ void main() {
           () => QuestionAuth.instance.signUp(
             const SignUpRequest(
               email: 'test@example.com',
-              username: 'testuser',
+              displayName: 'Test User',
               password: 'password123',
               confirmPassword: 'password123',
             ),
@@ -115,7 +123,7 @@ void main() {
         
         final request = const SignUpRequest(
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'Test User',
           password: 'password123',
           confirmPassword: 'password123',
         );
@@ -269,6 +277,99 @@ void main() {
       });
     });
     
+    group('User Profile Access Methods', () {
+      test('should return null for userRoles when not configured', () {
+        expect(QuestionAuth.instance.userRoles, isNull);
+      });
+      
+      test('should return null for profileComplete when not configured', () {
+        expect(QuestionAuth.instance.profileComplete, isNull);
+      });
+      
+      test('should return null for onboardingComplete when not configured', () {
+        expect(QuestionAuth.instance.onboardingComplete, isNull);
+      });
+      
+      test('should return null for appAccess when not configured', () {
+        expect(QuestionAuth.instance.appAccess, isNull);
+      });
+      
+      test('should return null for availableRoles when not configured', () {
+        expect(QuestionAuth.instance.availableRoles, isNull);
+      });
+      
+      test('should return null for incompleteRoles when not configured', () {
+        expect(QuestionAuth.instance.incompleteRoles, isNull);
+      });
+      
+      test('should return null for mode when not configured', () {
+        expect(QuestionAuth.instance.mode, isNull);
+      });
+      
+      test('should return null for viewType when not configured', () {
+        expect(QuestionAuth.instance.viewType, isNull);
+      });
+      
+      test('should return null for redirectTo when not configured', () {
+        expect(QuestionAuth.instance.redirectTo, isNull);
+      });
+      
+      test('should return false for hasRole when not configured', () {
+        expect(QuestionAuth.instance.hasRole('creator'), isFalse);
+      });
+      
+      test('should return false for isProfileCompleteForRole when not configured', () {
+        expect(QuestionAuth.instance.isProfileCompleteForRole('creator'), isFalse);
+      });
+      
+      test('should return false for hasFullAppAccess when not configured', () {
+        expect(QuestionAuth.instance.hasFullAppAccess, isFalse);
+      });
+      
+      test('should return false for hasIncompleteRoles when not configured', () {
+        expect(QuestionAuth.instance.hasIncompleteRoles, isFalse);
+      });
+      
+      test('should access user profile properties when configured', () {
+        QuestionAuth.instance.configure(
+          baseUrl: 'https://api.example.com',
+        );
+        
+        // All properties should be accessible (initially null/false)
+        expect(QuestionAuth.instance.userRoles, isNull);
+        expect(QuestionAuth.instance.profileComplete, isNull);
+        expect(QuestionAuth.instance.onboardingComplete, isNull);
+        expect(QuestionAuth.instance.appAccess, isNull);
+        expect(QuestionAuth.instance.availableRoles, isNull);
+        expect(QuestionAuth.instance.incompleteRoles, isNull);
+        expect(QuestionAuth.instance.mode, isNull);
+        expect(QuestionAuth.instance.viewType, isNull);
+        expect(QuestionAuth.instance.redirectTo, isNull);
+        expect(QuestionAuth.instance.hasRole('creator'), isFalse);
+        expect(QuestionAuth.instance.isProfileCompleteForRole('creator'), isFalse);
+        expect(QuestionAuth.instance.hasFullAppAccess, isFalse);
+        expect(QuestionAuth.instance.hasIncompleteRoles, isFalse);
+      });
+    });
+    
+    group('getCurrentUser Method Enhancement', () {
+      test('should have getCurrentUser method that returns Future<UserProfileResponse>', () {
+        QuestionAuth.instance.configure(
+          baseUrl: 'https://api.example.com',
+        );
+        
+        // Test that the method exists and has the correct signature
+        expect(QuestionAuth.instance.getCurrentUser, isA<Function>());
+      });
+      
+      test('should throw StateError when not configured', () {
+        expect(
+          () => QuestionAuth.instance.getCurrentUser(),
+          throwsA(isA<StateError>()),
+        );
+      });
+    });
+    
     group('Integration', () {
       test('should maintain state across multiple calls', () {
         // Configure once
@@ -301,6 +402,27 @@ void main() {
         // Should still work after reconfiguration
         final isAuth = QuestionAuth.instance.isAuthenticated;
         expect(isAuth, isA<bool>());
+      });
+      
+      test('should access all user profile methods after configuration', () {
+        QuestionAuth.instance.configure(
+          baseUrl: 'https://api.example.com',
+        );
+        
+        // Test that all new methods are accessible
+        expect(() => QuestionAuth.instance.userRoles, returnsNormally);
+        expect(() => QuestionAuth.instance.profileComplete, returnsNormally);
+        expect(() => QuestionAuth.instance.onboardingComplete, returnsNormally);
+        expect(() => QuestionAuth.instance.appAccess, returnsNormally);
+        expect(() => QuestionAuth.instance.availableRoles, returnsNormally);
+        expect(() => QuestionAuth.instance.incompleteRoles, returnsNormally);
+        expect(() => QuestionAuth.instance.mode, returnsNormally);
+        expect(() => QuestionAuth.instance.viewType, returnsNormally);
+        expect(() => QuestionAuth.instance.redirectTo, returnsNormally);
+        expect(() => QuestionAuth.instance.hasRole('creator'), returnsNormally);
+        expect(() => QuestionAuth.instance.isProfileCompleteForRole('creator'), returnsNormally);
+        expect(() => QuestionAuth.instance.hasFullAppAccess, returnsNormally);
+        expect(() => QuestionAuth.instance.hasIncompleteRoles, returnsNormally);
       });
     });
   });
