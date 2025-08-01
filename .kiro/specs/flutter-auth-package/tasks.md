@@ -55,8 +55,8 @@
     - Write unit tests for updated repository methods
     - _Requirements: 2.1, 2.2, 3.1, 3.2, 3.5, 4.1, 4.2, 4.5_
 
-- [ ] 5. Enhance authentication state management
-  - [ ] 5.1 Update AuthState to include user profile information
+- [-] 5. Enhance authentication state management
+  - [x] 5.1 Update AuthState to include user profile information
     - Extend AuthState to include user roles, profile completion status
     - Add onboarding status and app access information to state
     - Update AuthStateNotifier to handle rich user profile data
