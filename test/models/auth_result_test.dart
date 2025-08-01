@@ -7,9 +7,8 @@ void main() {
     group('factory constructors', () {
       test('should create successful AuthResult', () {
         const user = User(
-          id: '1',
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'testuser',
         );
 
         final result = AuthResult.success(user: user);
@@ -62,9 +61,8 @@ void main() {
           'success': true,
           'token': 'abc123',
           'user': {
-            'id': '1',
             'email': 'test@example.com',
-            'username': 'testuser',
+            'display_name': 'testuser',
           },
         };
 
@@ -72,8 +70,8 @@ void main() {
 
         expect(result.success, true);
         expect(result.user, isNotNull);
-        expect(result.user!.id, '1');
         expect(result.user!.email, 'test@example.com');
+        expect(result.user!.displayName, 'testuser');
         expect(result.error, isNull);
         expect(result.fieldErrors, isNull);
       });
@@ -82,9 +80,8 @@ void main() {
         final jsonResponse = {
           'token': 'abc123',
           'user': {
-            'id': '1',
             'email': 'test@example.com',
-            'username': 'testuser',
+            'display_name': 'testuser',
           },
         };
 
@@ -260,9 +257,8 @@ void main() {
     group('JSON serialization', () {
       test('should convert AuthResult to JSON', () {
         const user = User(
-          id: '1',
           email: 'test@example.com',
-          username: 'testuser',
+          displayName: 'testuser',
         );
 
         final result = AuthResult(
@@ -284,9 +280,8 @@ void main() {
         final json = {
           'success': true,
           'user': {
-            'id': '1',
             'email': 'test@example.com',
-            'username': 'testuser',
+            'display_name': 'testuser',
           },
           'error': 'Some error',
           'fieldErrors': {
@@ -298,7 +293,8 @@ void main() {
 
         expect(result.success, true);
         expect(result.user, isNotNull);
-        expect(result.user!.id, '1');
+        expect(result.user!.email, 'test@example.com');
+        expect(result.user!.displayName, 'testuser');
         expect(result.error, 'Some error');
         expect(result.fieldErrors!['field'], ['error1', 'error2']);
       });

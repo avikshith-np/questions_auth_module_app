@@ -1,20 +1,20 @@
 # Implementation Plan
 
 - [ ] 1. Update data models to match new API specifications
-  - [ ] 1.1 Update User model with new API fields
+  - [x] 1.1 Update User model with new API fields
     - Modify User class to include display_name, is_verified, is_new, email_verified, is_active, date_joined fields
     - Update fromJson/toJson methods to handle new API response structure
     - Update unit tests for User model with new fields
     - _Requirements: 4.2, 4.5_
 
-  - [ ] 1.2 Update SignUpRequest model for new API
+  - [x] 1.2 Update SignUpRequest model for new API
     - Change username field to display_name in SignUpRequest
     - Update toJson method to match /accounts/register/ endpoint payload
     - Update validation to handle display_name instead of username
     - Update unit tests for SignUpRequest model
     - _Requirements: 2.1, 2.4, 2.5_
 
-  - [ ] 1.3 Create new response models for API endpoints
+  - [x] 1.3 Create new response models for API endpoints
     - Implement SignUpResponse and SignUpData models for registration endpoint
     - Implement LoginResponse model with roles, profile_complete, onboarding_complete fields
     - Implement UserProfileResponse model for /accounts/me/ endpoint

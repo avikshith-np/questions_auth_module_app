@@ -230,7 +230,13 @@ export 'src/models/user.dart' show User;
 export 'src/models/auth_request.dart' show 
     SignUpRequest, 
     LoginRequest;
-export 'src/models/auth_response.dart' show AuthResponse;
+export 'src/models/auth_response.dart' show 
+    AuthResponse,
+    SignUpResponse,
+    SignUpData,
+    LoginResponse,
+    UserProfileResponse,
+    LogoutResponse;
 export 'src/models/auth_result.dart' show AuthResult;
 
 // Service exports - Main authentication services
