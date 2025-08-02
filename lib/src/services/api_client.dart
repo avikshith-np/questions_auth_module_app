@@ -528,7 +528,7 @@ class HttpApiClient implements ApiClient {
           await _checkConnectivity();
           continue;
         }
-        throw lastException!;
+        throw lastException;
       } on HttpException catch (e) {
         lastException = NetworkException('HTTP error: ${e.message}');
         attempts++;
@@ -536,7 +536,7 @@ class HttpApiClient implements ApiClient {
           await Future.delayed(_retryDelay * attempts);
           continue;
         }
-        throw lastException!;
+        throw lastException;
       } on FormatException catch (e) {
         // Don't retry format exceptions as they're likely permanent
         throw NetworkException('Invalid response format: ${e.message}');
@@ -562,7 +562,7 @@ class HttpApiClient implements ApiClient {
             await Future.delayed(_retryDelay * attempts);
             continue;
           }
-          throw lastException!;
+          throw lastException;
         }
         
         lastException = NetworkException('Unexpected error: ${e.toString()}');
@@ -571,7 +571,7 @@ class HttpApiClient implements ApiClient {
           await Future.delayed(_retryDelay * attempts);
           continue;
         }
-        throw lastException!;
+        throw lastException;
       }
     }
     

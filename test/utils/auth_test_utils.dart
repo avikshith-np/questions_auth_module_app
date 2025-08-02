@@ -358,6 +358,37 @@ class AuthTestUtils {
     );
   }
 
+  /// Alias for createTestLoginResponse for consistency
+  static LoginResponse createLoginResponse({
+    String token = 'test-token-123',
+    User? user,
+    List<String> roles = const ['Creator'],
+    Map<String, bool> profileComplete = const {'creator': true, 'student': false},
+    bool onboardingComplete = true,
+    List<String> incompleteRoles = const [],
+    String appAccess = 'full',
+    String redirectTo = '/dashboard',
+  }) {
+    return createTestLoginResponse(
+      token: token,
+      user: user,
+      roles: roles,
+      profileComplete: profileComplete,
+      onboardingComplete: onboardingComplete,
+      incompleteRoles: incompleteRoles,
+      appAccess: appAccess,
+      redirectTo: redirectTo,
+    );
+  }
+
+  /// Creates a LoginRequest for testing
+  static LoginRequest createLoginRequest({
+    String email = 'test@example.com',
+    String password = 'password123',
+  }) {
+    return createValidLoginRequest(email: email, password: password);
+  }
+
   /// Creates a test UserProfileResponse for testing
   static UserProfileResponse createTestUserProfileResponse({
     User? user,
@@ -375,6 +406,37 @@ class AuthTestUtils {
   }) {
     return UserProfileResponse(
       user: user ?? createTestUser(),
+      isNew: isNew,
+      mode: mode,
+      roles: roles,
+      availableRoles: availableRoles,
+      removableRoles: removableRoles,
+      profileComplete: profileComplete,
+      onboardingComplete: onboardingComplete,
+      incompleteRoles: incompleteRoles,
+      appAccess: appAccess,
+      viewType: viewType,
+      redirectTo: redirectTo,
+    );
+  }
+
+  /// Alias for createTestUserProfileResponse for consistency
+  static UserProfileResponse createUserProfileResponse({
+    User? user,
+    bool isNew = false,
+    String mode = 'creator',
+    List<String> roles = const ['creator'],
+    List<String> availableRoles = const ['student'],
+    List<String> removableRoles = const [],
+    Map<String, bool> profileComplete = const {'creator': true, 'student': false},
+    bool onboardingComplete = true,
+    List<String> incompleteRoles = const [],
+    String appAccess = 'full',
+    String viewType = 'creator-complete-creator-only',
+    String redirectTo = '/dashboard',
+  }) {
+    return createTestUserProfileResponse(
+      user: user,
       isNew: isNew,
       mode: mode,
       roles: roles,

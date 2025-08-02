@@ -135,7 +135,7 @@ class TokenException extends AuthException {
 
 /// Exception thrown when request timeout occurs
 class TimeoutException extends NetworkException {
-  const TimeoutException(String message) : super(message);
+  const TimeoutException(super.message);
   
   @override
   String toString() => 'TimeoutException: $message';
@@ -143,7 +143,7 @@ class TimeoutException extends NetworkException {
 
 /// Exception thrown when device is offline or has no connectivity
 class ConnectivityException extends NetworkException {
-  const ConnectivityException(String message) : super(message);
+  const ConnectivityException(super.message);
   
   @override
   String toString() => 'ConnectivityException: $message';

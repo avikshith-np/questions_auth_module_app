@@ -1,16 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
-
-import '../../lib/src/services/question_auth.dart';
-import '../../lib/src/models/auth_request.dart';
-import '../../lib/src/models/auth_response.dart';
-import '../../lib/src/models/user.dart';
-import '../../lib/src/core/auth_state.dart';
-import '../../lib/src/services/auth_service.dart';
-
-@GenerateMocks([AuthService])
-import 'question_auth_test.mocks.dart';
+import 'package:question_auth/question_auth.dart';
 
 void main() {
   group('QuestionAuth', () {

@@ -1,6 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
 import 'package:question_auth/question_auth.dart';
 import 'auth_test_utils.dart';
 import 'mock_implementations.dart';

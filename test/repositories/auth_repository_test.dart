@@ -6,7 +6,6 @@ import 'package:question_auth/src/services/api_client.dart';
 import 'package:question_auth/src/core/token_manager.dart';
 import 'package:question_auth/src/models/auth_request.dart';
 import 'package:question_auth/src/models/auth_response.dart';
-import 'package:question_auth/src/models/auth_result.dart';
 import 'package:question_auth/src/models/user.dart';
 import 'package:question_auth/src/core/exceptions.dart';
 
@@ -186,6 +185,8 @@ void main() {
             .thenAnswer((_) async => loginResponse);
         when(mockTokenManager.saveToken('auth-token-456'))
             .thenAnswer((_) async {});
+        when(mockTokenManager.saveUserProfile(any))
+            .thenAnswer((_) async {});
 
         // Act
         final result = await authRepository.login(request);
@@ -278,6 +279,8 @@ void main() {
             .thenAnswer((_) async => token);
         when(mockApiClient.getCurrentUser())
             .thenAnswer((_) async => userProfileResponse);
+        when(mockTokenManager.saveUserProfile(any))
+            .thenAnswer((_) async {});
 
         // Act
         final result = await authRepository.getCurrentUser();
@@ -352,7 +355,7 @@ void main() {
             .thenAnswer((_) async => token);
         when(mockApiClient.logout())
             .thenAnswer((_) async => logoutResponse);
-        when(mockTokenManager.clearToken())
+        when(mockTokenManager.clearAll())
             .thenAnswer((_) async {});
 
         // Act
@@ -362,7 +365,7 @@ void main() {
         verify(mockTokenManager.getToken()).called(1);
         verify(mockApiClient.setAuthToken(token)).called(1);
         verify(mockApiClient.logout()).called(1);
-        verify(mockTokenManager.clearToken()).called(1);
+        verify(mockTokenManager.clearAll()).called(1);
         verify(mockApiClient.clearAuthToken()).called(1);
       });
 
@@ -370,7 +373,7 @@ void main() {
         // Arrange
         when(mockTokenManager.getToken())
             .thenAnswer((_) async => null);
-        when(mockTokenManager.clearToken())
+        when(mockTokenManager.clearAll())
             .thenAnswer((_) async {});
 
         // Act
@@ -380,7 +383,7 @@ void main() {
         verify(mockTokenManager.getToken()).called(1);
         verifyNever(mockApiClient.setAuthToken(any));
         verifyNever(mockApiClient.post(any, any));
-        verify(mockTokenManager.clearToken()).called(1);
+        verify(mockTokenManager.clearAll()).called(1);
         verify(mockApiClient.clearAuthToken()).called(1);
       });
 
@@ -392,7 +395,7 @@ void main() {
             .thenAnswer((_) async => token);
         when(mockApiClient.logout())
             .thenThrow(NetworkException('Server unavailable'));
-        when(mockTokenManager.clearToken())
+        when(mockTokenManager.clearAll())
             .thenAnswer((_) async {});
 
         // Act
@@ -402,7 +405,7 @@ void main() {
         verify(mockTokenManager.getToken()).called(1);
         verify(mockApiClient.setAuthToken(token)).called(1);
         verify(mockApiClient.logout()).called(1);
-        verify(mockTokenManager.clearToken()).called(1);
+        verify(mockTokenManager.clearAll()).called(1);
         verify(mockApiClient.clearAuthToken()).called(1);
       });
 
@@ -410,7 +413,7 @@ void main() {
         // Arrange
         when(mockTokenManager.getToken())
             .thenThrow(Exception('Storage error'));
-        when(mockTokenManager.clearToken())
+        when(mockTokenManager.clearAll())
             .thenAnswer((_) async {});
 
         // Act & Assert
@@ -423,7 +426,7 @@ void main() {
         }
         
         // Should still attempt to clear token
-        verify(mockTokenManager.clearToken()).called(1);
+        verify(mockTokenManager.clearAll()).called(1);
         verify(mockApiClient.clearAuthToken()).called(1);
       });
     });

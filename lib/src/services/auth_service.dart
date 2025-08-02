@@ -5,6 +5,7 @@ import '../models/auth_result.dart';
 import '../models/user.dart';
 import '../models/auth_response.dart';
 import '../core/auth_state.dart';
+import '../core/token_manager.dart';
 import '../repositories/auth_repository.dart';
 import '../core/exceptions.dart';
 
@@ -119,9 +120,39 @@ class AuthServiceImpl implements AuthService {
         return;
       }
       
-      // Try to get current user with stored token
-      final userProfile = await _repository.getCurrentUser();
-      _stateNotifier.setAuthenticatedFromUserProfileResponse(userProfile);
+      // Try to restore user profile data from storage first
+      UserProfileData? storedProfile;
+      if (_repository is AuthRepositoryImpl) {
+        storedProfile = await _repository.getStoredUserProfile();
+      }
+      if (storedProfile != null) {
+        // Restore authentication state from stored profile data
+        _stateNotifier.setAuthenticatedWithProfile(
+          storedProfile.user,
+          userRoles: storedProfile.userRoles,
+          profileComplete: storedProfile.profileComplete,
+          onboardingComplete: storedProfile.onboardingComplete,
+          appAccess: storedProfile.appAccess,
+          availableRoles: storedProfile.availableRoles,
+          incompleteRoles: storedProfile.incompleteRoles,
+          mode: storedProfile.mode,
+          viewType: storedProfile.viewType,
+          redirectTo: storedProfile.redirectTo,
+        );
+        
+        // Try to refresh user profile data from server in background
+        try {
+          final userProfile = await _repository.getCurrentUser();
+          _stateNotifier.setAuthenticatedFromUserProfileResponse(userProfile);
+        } catch (e) {
+          // If refresh fails, keep the stored profile data
+          // This allows offline functionality with cached profile data
+        }
+      } else {
+        // No stored profile data, fetch from server
+        final userProfile = await _repository.getCurrentUser();
+        _stateNotifier.setAuthenticatedFromUserProfileResponse(userProfile);
+      }
     } on TokenException catch (e) {
       // Token is invalid or expired, clear it
       await _repository.clearExpiredToken();
@@ -135,12 +166,52 @@ class AuthServiceImpl implements AuthService {
         _stateNotifier.setUnauthenticated(e.message);
       }
     } on NetworkException {
-      // Network error during initialization - keep unknown state
-      // Don't clear token as it might be valid, just network issue
-      _stateNotifier.setUnknown();
+      // Network error during initialization - try to use stored profile data
+      UserProfileData? storedProfile;
+      if (_repository is AuthRepositoryImpl) {
+        storedProfile = await _repository.getStoredUserProfile();
+      }
+      if (storedProfile != null) {
+        // Use cached profile data when network is unavailable
+        _stateNotifier.setAuthenticatedWithProfile(
+          storedProfile.user,
+          userRoles: storedProfile.userRoles,
+          profileComplete: storedProfile.profileComplete,
+          onboardingComplete: storedProfile.onboardingComplete,
+          appAccess: storedProfile.appAccess,
+          availableRoles: storedProfile.availableRoles,
+          incompleteRoles: storedProfile.incompleteRoles,
+          mode: storedProfile.mode,
+          viewType: storedProfile.viewType,
+          redirectTo: storedProfile.redirectTo,
+        );
+      } else {
+        // No cached data and network error - keep unknown state
+        _stateNotifier.setUnknown();
+      }
     } catch (e) {
-      // Unexpected error - set to unauthenticated for security
-      _stateNotifier.setUnauthenticated('Authentication initialization failed');
+      // Unexpected error - try to use stored profile data as fallback
+      UserProfileData? storedProfile;
+      if (_repository is AuthRepositoryImpl) {
+        storedProfile = await _repository.getStoredUserProfile();
+      }
+      if (storedProfile != null) {
+        _stateNotifier.setAuthenticatedWithProfile(
+          storedProfile.user,
+          userRoles: storedProfile.userRoles,
+          profileComplete: storedProfile.profileComplete,
+          onboardingComplete: storedProfile.onboardingComplete,
+          appAccess: storedProfile.appAccess,
+          availableRoles: storedProfile.availableRoles,
+          incompleteRoles: storedProfile.incompleteRoles,
+          mode: storedProfile.mode,
+          viewType: storedProfile.viewType,
+          redirectTo: storedProfile.redirectTo,
+        );
+      } else {
+        // No fallback data available - set to unauthenticated for security
+        _stateNotifier.setUnauthenticated('Authentication initialization failed');
+      }
     }
   }
 
@@ -221,9 +292,9 @@ class AuthServiceImpl implements AuthService {
     } on ApiException catch (e) {
       _stateNotifier.setUnauthenticated(e.message);
       rethrow;
-    } on NetworkException catch (e) {
+    } on NetworkException {
       rethrow;
-    } catch (e) {
+    } catch (_) {
       _stateNotifier.setUnauthenticated('Failed to get user profile');
       rethrow;
     }
@@ -233,10 +304,101 @@ class AuthServiceImpl implements AuthService {
   Future<void> logout() async {
     try {
       await _repository.logout();
-    } catch (e) {
+    } catch (_) {
       // Even if repository logout fails, we still want to clear local state
     } finally {
       _stateNotifier.setUnauthenticated();
+    }
+  }
+
+  /// Update user profile data in storage and state
+  /// 
+  /// This method allows updating specific fields in the user profile
+  /// without making a full API call
+  Future<void> updateUserProfile({
+    User? user,
+    List<String>? userRoles,
+    Map<String, bool>? profileComplete,
+    bool? onboardingComplete,
+    String? appAccess,
+    List<String>? availableRoles,
+    List<String>? incompleteRoles,
+    String? mode,
+    String? viewType,
+    String? redirectTo,
+  }) async {
+    try {
+      // Update stored profile data
+      if (_repository is AuthRepositoryImpl) {
+        await _repository.updateStoredUserProfile(
+        user: user,
+        userRoles: userRoles,
+        profileComplete: profileComplete,
+        onboardingComplete: onboardingComplete,
+        appAccess: appAccess,
+        availableRoles: availableRoles,
+        incompleteRoles: incompleteRoles,
+        mode: mode,
+        viewType: viewType,
+        redirectTo: redirectTo,
+      );
+      }
+
+      // Update current authentication state
+      _stateNotifier.updateProfileData(
+        userRoles: userRoles,
+        profileComplete: profileComplete,
+        onboardingComplete: onboardingComplete,
+        appAccess: appAccess,
+        availableRoles: availableRoles,
+        incompleteRoles: incompleteRoles,
+        mode: mode,
+        viewType: viewType,
+        redirectTo: redirectTo,
+      );
+    } catch (e) {
+      throw NetworkException('Failed to update user profile: ${e.toString()}');
+    }
+  }
+
+  /// Refresh user profile data from server
+  /// 
+  /// This method fetches the latest user profile data from the server
+  /// and updates both storage and state
+  Future<void> refreshUserProfile() async {
+    try {
+      final userProfile = await _repository.getCurrentUser();
+      _stateNotifier.setAuthenticatedFromUserProfileResponse(userProfile);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// Check if user profile data is available in storage
+  /// 
+  /// Returns true if profile data is cached locally
+  Future<bool> hasStoredUserProfile() async {
+    try {
+      if (_repository is AuthRepositoryImpl) {
+        return await _repository.hasStoredUserProfile();
+      }
+      return false;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Get stored user profile data
+  /// 
+  /// Returns cached profile data if available, null otherwise
+  Future<UserProfileData?> getStoredUserProfile() async {
+    try {
+      if (_repository is AuthRepositoryImpl) {
+        return await _repository.getStoredUserProfile();
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 }

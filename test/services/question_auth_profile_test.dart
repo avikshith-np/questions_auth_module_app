@@ -1,23 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
-import 'package:mockito/annotations.dart';
-
-import '../../lib/src/services/question_auth.dart';
-import '../../lib/src/models/auth_response.dart';
-import '../../lib/src/models/user.dart';
-import '../../lib/src/core/auth_state.dart';
-import '../../lib/src/services/auth_service.dart';
-
-@GenerateMocks([AuthService])
-import 'question_auth_profile_test.mocks.dart';
+import 'package:question_auth/question_auth.dart';
 
 void main() {
   group('QuestionAuth User Profile Enhancement', () {
-    late MockAuthService mockAuthService;
-    
     setUp(() {
       QuestionAuth.reset();
-      mockAuthService = MockAuthService();
     });
     
     tearDown(() {
@@ -28,10 +15,6 @@ void main() {
       test('should return user roles from auth service', () {
         // Configure QuestionAuth
         QuestionAuth.instance.configure(baseUrl: 'https://api.example.com');
-        
-        // Replace the internal auth service with mock (this is a conceptual test)
-        // In real implementation, we would need dependency injection
-        final roles = ['creator', 'student'];
         
         // Test the getter exists and returns expected type
         final userRoles = QuestionAuth.instance.userRoles;

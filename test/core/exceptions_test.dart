@@ -297,5 +297,5 @@ void main() {
 
 // Test implementation of AuthException for testing abstract class
 class _TestAuthException extends AuthException {
-  const _TestAuthException(String message, [String? code]) : super(message, code);
+  const _TestAuthException(super.message, [super.code]);
 }

@@ -24,17 +24,20 @@ void main() {
       });
 
       group('Requirement 1: Package Integration', () {
-        test('should provide simple API for authentication operations', () async {
-          // Arrange
-          final signUpRequest = AuthTestUtils.createValidSignUpRequest();
+        test(
+          'should provide simple API for authentication operations',
+          () async {
+            // Arrange
+            final signUpRequest = AuthTestUtils.createValidSignUpRequest();
 
-          // Act & Assert - Simple API usage
-          final result = await authService.signUp(signUpRequest);
-          
-          expect(result.success, isTrue);
-          expect(result.user, isNotNull);
-          expect(authService.isAuthenticated, isTrue);
-        });
+            // Act & Assert - Simple API usage
+            final result = await authService.signUp(signUpRequest);
+
+            expect(result.success, isTrue);
+            expect(result.user, isNotNull);
+            expect(authService.isAuthenticated, isTrue);
+          },
+        );
 
         test('should expose authentication methods without complex setup', () {
           // Assert - Verify all required methods are available
@@ -147,21 +150,24 @@ void main() {
           expect(authService.isAuthenticated, isTrue);
         });
 
-        test('should store authentication token securely when login succeeds', () async {
-          // Arrange
-          final loginRequest = AuthTestUtils.createValidLoginRequest();
+        test(
+          'should store authentication token securely when login succeeds',
+          () async {
+            // Arrange
+            final loginRequest = AuthTestUtils.createValidLoginRequest();
 
-          // Act
-          final result = await authService.login(loginRequest);
+            // Act
+            final result = await authService.login(loginRequest);
 
-          // Assert - Token storage verified through authentication state
-          expect(result.success, isTrue);
-          expect(authService.isAuthenticated, isTrue);
-          
-          // Verify token was stored
-          final storedToken = await mockTokenManager.getToken();
-          expect(storedToken, isNotNull);
-        });
+            // Assert - Token storage verified through authentication state
+            expect(result.success, isTrue);
+            expect(authService.isAuthenticated, isTrue);
+
+            // Verify token was stored
+            final storedToken = await mockTokenManager.getToken();
+            expect(storedToken, isNotNull);
+          },
+        );
 
         test('should return error messages when login fails', () async {
           // Arrange - Use error-prone client
@@ -193,7 +199,7 @@ void main() {
 
           // Assert - Token availability verified through subsequent API calls
           expect(authService.isAuthenticated, isTrue);
-          
+
           final user = await authService.getCurrentUser();
           expect(user, isNotNull);
         });
@@ -214,24 +220,29 @@ void main() {
           expect(user.username, equals('testuser'));
         });
 
-        test('should return authentication error when not authenticated', () async {
-          // Arrange - Use error client for unauthenticated requests
-          final errorApiClient = ApiErrorMockApiClient(
-            statusCode: 401,
-            message: 'Unauthorized',
-          );
-          final errorRepository = AuthRepositoryImpl(
-            apiClient: errorApiClient,
-            tokenManager: mockTokenManager,
-          );
-          final errorAuthService = AuthServiceImpl(repository: errorRepository);
+        test(
+          'should return authentication error when not authenticated',
+          () async {
+            // Arrange - Use error client for unauthenticated requests
+            final errorApiClient = ApiErrorMockApiClient(
+              statusCode: 401,
+              message: 'Unauthorized',
+            );
+            final errorRepository = AuthRepositoryImpl(
+              apiClient: errorApiClient,
+              tokenManager: mockTokenManager,
+            );
+            final errorAuthService = AuthServiceImpl(
+              repository: errorRepository,
+            );
 
-          // Act & Assert - Should throw TokenException when no token available
-          expect(
-            () => errorAuthService.getCurrentUser(),
-            throwsA(isA<TokenException>()),
-          );
-        });
+            // Act & Assert - Should throw TokenException when no token available
+            expect(
+              () => errorAuthService.getCurrentUser(),
+              throwsA(isA<TokenException>()),
+            );
+          },
+        );
 
         test('should handle token expiration appropriately', () async {
           // Arrange - Use error client for expired token
@@ -267,7 +278,7 @@ void main() {
           // Assert
           expect(authService.isAuthenticated, isFalse);
           expect(authService.currentUser, isNull);
-          
+
           // Verify token was cleared
           final storedToken = await mockTokenManager.getToken();
           expect(storedToken, isNull);
@@ -295,19 +306,22 @@ void main() {
 
           // Assert - Token should still be cleared for security
           expect(errorAuthService.isAuthenticated, isFalse);
-          
+
           final storedToken = await mockTokenManager.getToken();
           expect(storedToken, isNull);
         });
 
-        test('should handle logout gracefully when already logged out', () async {
-          // Arrange - Not authenticated
-          expect(authService.isAuthenticated, isFalse);
+        test(
+          'should handle logout gracefully when already logged out',
+          () async {
+            // Arrange - Not authenticated
+            expect(authService.isAuthenticated, isFalse);
 
-          // Act & Assert - Should not throw error
-          await authService.logout();
-          expect(authService.isAuthenticated, isFalse);
-        });
+            // Act & Assert - Should not throw error
+            await authService.logout();
+            expect(authService.isAuthenticated, isFalse);
+          },
+        );
       });
 
       group('Requirement 6: Token Management', () {
@@ -320,38 +334,43 @@ void main() {
 
           // Assert - Token storage verified through authentication state
           expect(authService.isAuthenticated, isTrue);
-          
+
           final storedToken = await mockTokenManager.getToken();
           expect(storedToken, isNotNull);
         });
 
-        test('should automatically include Authorization header in requests', () async {
-          // Arrange - First authenticate
-          final loginRequest = AuthTestUtils.createValidLoginRequest();
-          await authService.login(loginRequest);
+        test(
+          'should automatically include Authorization header in requests',
+          () async {
+            // Arrange - First authenticate
+            final loginRequest = AuthTestUtils.createValidLoginRequest();
+            await authService.login(loginRequest);
 
-          // Act - Make authenticated request
-          final user = await authService.getCurrentUser();
+            // Act - Make authenticated request
+            final user = await authService.getCurrentUser();
 
-          // Assert - Request succeeded, indicating auth header was included
-          expect(user, isNotNull);
-          expect(authService.isAuthenticated, isTrue);
-        });
+            // Assert - Request succeeded, indicating auth header was included
+            expect(user, isNotNull);
+            expect(authService.isAuthenticated, isTrue);
+          },
+        );
 
         test('should handle token expiration with re-authentication', () async {
           // Arrange - Mock expired token and set up token manager to report it as expired
           mockTokenManager.simulateToken('expired-token');
-          
+
           // Create a custom token manager that reports token as expired
           final expiredTokenManager = MockTokenManager();
           expiredTokenManager.simulateToken('expired-token');
-          
+
           final expiredRepository = AuthRepositoryImpl(
             apiClient: successfulApiClient,
             tokenManager: expiredTokenManager,
           );
-          final expiredAuthService = AuthServiceImpl(repository: expiredRepository);
-          
+          final expiredAuthService = AuthServiceImpl(
+            repository: expiredRepository,
+          );
+
           // Act
           await expiredAuthService.initialize();
 
@@ -361,47 +380,55 @@ void main() {
           expect(expiredAuthService.isAuthenticated, isIn([true, false]));
         });
 
-        test('should persist authentication state across app restarts', () async {
-          // Arrange - First login
-          final loginRequest = AuthTestUtils.createValidLoginRequest();
-          await authService.login(loginRequest);
-          expect(authService.isAuthenticated, isTrue);
-          
-          // Simulate app restart - create new service instance
-          final newRepository = AuthRepositoryImpl(
-            apiClient: successfulApiClient,
-            tokenManager: mockTokenManager,
-          );
-          final newAuthService = AuthServiceImpl(repository: newRepository);
+        test(
+          'should persist authentication state across app restarts',
+          () async {
+            // Arrange - First login
+            final loginRequest = AuthTestUtils.createValidLoginRequest();
+            await authService.login(loginRequest);
+            expect(authService.isAuthenticated, isTrue);
 
-          // Act - Initialize after restart
-          await newAuthService.initialize();
+            // Simulate app restart - create new service instance
+            final newRepository = AuthRepositoryImpl(
+              apiClient: successfulApiClient,
+              tokenManager: mockTokenManager,
+            );
+            final newAuthService = AuthServiceImpl(repository: newRepository);
 
-          // Assert - Session should be restored
-          expect(newAuthService.isAuthenticated, isTrue);
-          expect(newAuthService.currentUser, isNotNull);
-        });
+            // Act - Initialize after restart
+            await newAuthService.initialize();
+
+            // Assert - Session should be restored
+            expect(newAuthService.isAuthenticated, isTrue);
+            expect(newAuthService.currentUser, isNotNull);
+          },
+        );
       });
 
       group('Requirement 7: Error Handling', () {
-        test('should return structured error responses for network errors', () async {
-          // Arrange
-          final networkErrorClient = NetworkErrorMockApiClient();
-          final errorRepository = AuthRepositoryImpl(
-            apiClient: networkErrorClient,
-            tokenManager: mockTokenManager,
-          );
-          final errorAuthService = AuthServiceImpl(repository: errorRepository);
-          final loginRequest = AuthTestUtils.createValidLoginRequest();
+        test(
+          'should return structured error responses for network errors',
+          () async {
+            // Arrange
+            final networkErrorClient = NetworkErrorMockApiClient();
+            final errorRepository = AuthRepositoryImpl(
+              apiClient: networkErrorClient,
+              tokenManager: mockTokenManager,
+            );
+            final errorAuthService = AuthServiceImpl(
+              repository: errorRepository,
+            );
+            final loginRequest = AuthTestUtils.createValidLoginRequest();
 
-          // Act
-          final result = await errorAuthService.login(loginRequest);
+            // Act
+            final result = await errorAuthService.login(loginRequest);
 
-          // Assert
-          expect(result.success, isFalse);
-          expect(result.error, contains('Network'));
-          expect(errorAuthService.currentAuthState.error, isNotNull);
-        });
+            // Assert
+            expect(result.success, isFalse);
+            expect(result.error, contains('Network'));
+            expect(errorAuthService.currentAuthState.error, isNotNull);
+          },
+        );
 
         test('should parse and return server error messages', () async {
           // Arrange
@@ -478,7 +505,9 @@ void main() {
             apiClient: customApiClient,
             tokenManager: customTokenManager,
           );
-          final customAuthService = AuthServiceImpl(repository: customRepository);
+          final customAuthService = AuthServiceImpl(
+            repository: customRepository,
+          );
 
           // Assert
           expect(customAuthService, isA<AuthService>());
@@ -486,7 +515,10 @@ void main() {
 
         test('should provide test utilities and helpers', () {
           // Assert - Verify test utilities are available
-          expect(AuthTestUtils.createValidSignUpRequest(), isA<SignUpRequest>());
+          expect(
+            AuthTestUtils.createValidSignUpRequest(),
+            isA<SignUpRequest>(),
+          );
           expect(AuthTestUtils.createValidLoginRequest(), isA<LoginRequest>());
           expect(AuthTestUtils.createTestUser(), isA<User>());
           expect(AuthTestUtils.createSuccessResponse(), isA<AuthResponse>());
@@ -521,55 +553,60 @@ void main() {
         authService = AuthServiceImpl(repository: repository);
       });
 
-      test('should complete full user journey: register -> profile -> logout -> login', () async {
-        // Arrange
-        final signUpRequest = AuthTestUtils.createValidSignUpRequest();
-        final loginRequest = AuthTestUtils.createValidLoginRequest();
-        final stateChanges = <AuthState>[];
-        final subscription = authService.authStateStream.listen(stateChanges.add);
+      test(
+        'should complete full user journey: register -> profile -> logout -> login',
+        () async {
+          // Arrange
+          final signUpRequest = AuthTestUtils.createValidSignUpRequest();
+          final loginRequest = AuthTestUtils.createValidLoginRequest();
+          final stateChanges = <AuthState>[];
+          final subscription = authService.authStateStream.listen(
+            stateChanges.add,
+          );
 
-        // Act & Assert - Complete user journey
-        
-        // 1. Register user
-        final signUpResult = await authService.signUp(signUpRequest);
-        expect(signUpResult.success, isTrue);
-        expect(authService.isAuthenticated, isTrue);
+          // Act & Assert - Complete user journey
 
-        // 2. Get profile
-        final user = await authService.getCurrentUser();
-        expect(user.email, isNotNull);
-        expect(authService.isAuthenticated, isTrue);
+          // 1. Register user
+          final signUpResult = await authService.signUp(signUpRequest);
+          expect(signUpResult.success, isTrue);
+          expect(authService.isAuthenticated, isTrue);
 
-        // 3. Logout
-        await authService.logout();
-        expect(authService.isAuthenticated, isFalse);
+          // 2. Get profile
+          final user = await authService.getCurrentUser();
+          expect(user.email, isNotNull);
+          expect(authService.isAuthenticated, isTrue);
 
-        // 4. Login again
-        final loginResult = await authService.login(loginRequest);
-        expect(loginResult.success, isTrue);
-        expect(authService.isAuthenticated, isTrue);
+          // 3. Logout
+          await authService.logout();
+          expect(authService.isAuthenticated, isFalse);
 
-        // Verify state transitions
-        await Future.delayed(const Duration(milliseconds: 10));
-        expect(stateChanges.length, greaterThanOrEqualTo(3));
-        
-        final authenticatedStates = stateChanges
-            .where((state) => state.status == AuthStatus.authenticated)
-            .toList();
-        expect(authenticatedStates.length, greaterThanOrEqualTo(2));
+          // 4. Login again
+          final loginResult = await authService.login(loginRequest);
+          expect(loginResult.success, isTrue);
+          expect(authService.isAuthenticated, isTrue);
 
-        await subscription.cancel();
-      });
+          // Verify state transitions
+          await Future.delayed(const Duration(milliseconds: 10));
+          expect(stateChanges.length, greaterThanOrEqualTo(3));
+
+          final authenticatedStates = stateChanges
+              .where((state) => state.status == AuthStatus.authenticated)
+              .toList();
+          expect(authenticatedStates.length, greaterThanOrEqualTo(2));
+
+          await subscription.cancel();
+        },
+      );
 
       test('should handle token persistence across app restarts', () async {
         // Arrange - Simulate first app session
         final loginRequest = AuthTestUtils.createValidLoginRequest();
-        
+
         // Act - Login in first session
         final loginResult = await authService.login(loginRequest);
         expect(loginResult.success, isTrue);
         expect(authService.isAuthenticated, isTrue);
-        
+
         // Verify token was stored
         final storedToken = await mockTokenManager.getToken();
         expect(storedToken, isNotNull);
@@ -596,17 +633,22 @@ void main() {
           apiClient: networkErrorClient,
           tokenManager: mockTokenManager,
         );
-        final networkErrorService = AuthServiceImpl(repository: networkErrorRepository);
+        final networkErrorService = AuthServiceImpl(
+          repository: networkErrorRepository,
+        );
 
         final loginRequest = AuthTestUtils.createValidLoginRequest();
         final networkResult = await networkErrorService.login(loginRequest);
-        
+
         expect(networkResult.success, isFalse);
         expect(networkResult.error, contains('Network'));
         expect(networkErrorService.isAuthenticated, isFalse);
 
         // Test API errors
-        final apiErrorClient = ApiErrorMockApiClient(statusCode: 500, message: 'Server error');
+        final apiErrorClient = ApiErrorMockApiClient(
+          statusCode: 500,
+          message: 'Server error',
+        );
         final apiErrorRepository = AuthRepositoryImpl(
           apiClient: apiErrorClient,
           tokenManager: mockTokenManager,
@@ -614,7 +656,7 @@ void main() {
         final apiErrorService = AuthServiceImpl(repository: apiErrorRepository);
 
         final apiResult = await apiErrorService.login(loginRequest);
-        
+
         expect(apiResult.success, isFalse);
         expect(apiResult.error, contains('Server error'));
         expect(apiErrorService.isAuthenticated, isFalse);
@@ -628,43 +670,48 @@ void main() {
         );
 
         final validationResult = await authService.signUp(invalidRequest);
-        
+
         expect(validationResult.success, isFalse);
         expect(validationResult.fieldErrors, isNotNull);
         expect(authService.isAuthenticated, isFalse);
       });
 
-      test('should demonstrate reactive authentication state management', () async {
-        // Arrange
-        final loginRequest = AuthTestUtils.createValidLoginRequest();
-        final stateHistory = <AuthState>[];
-        
-        // Monitor all state changes
-        final subscription = authService.authStateStream.listen(stateHistory.add);
+      test(
+        'should demonstrate reactive authentication state management',
+        () async {
+          // Arrange
+          final loginRequest = AuthTestUtils.createValidLoginRequest();
+          final stateHistory = <AuthState>[];
 
-        // Act - Perform various authentication operations
-        await authService.initialize(); // Should be unauthenticated
-        await authService.login(loginRequest); // Should become authenticated
-        await authService.getCurrentUser(); // Should remain authenticated
-        await authService.logout(); // Should become unauthenticated
+          // Monitor all state changes
+          final subscription = authService.authStateStream.listen(
+            stateHistory.add,
+          );
 
-        // Allow time for all state changes to propagate
-        await Future.delayed(const Duration(milliseconds: 50));
+          // Act - Perform various authentication operations
+          await authService.initialize(); // Should be unauthenticated
+          await authService.login(loginRequest); // Should become authenticated
+          await authService.getCurrentUser(); // Should remain authenticated
+          await authService.logout(); // Should become unauthenticated
 
-        // Assert - Verify reactive state management
-        expect(stateHistory.length, greaterThanOrEqualTo(3));
-        
-        // Should have authentication state changes
-        final hasAuthenticatedState = stateHistory.any(
-          (state) => state.status == AuthStatus.authenticated,
-        );
-        expect(hasAuthenticatedState, isTrue);
-        
-        // Should end unauthenticated
-        expect(stateHistory.last.status, AuthStatus.unauthenticated);
+          // Allow time for all state changes to propagate
+          await Future.delayed(const Duration(milliseconds: 50));
 
-        await subscription.cancel();
-      });
+          // Assert - Verify reactive state management
+          expect(stateHistory.length, greaterThanOrEqualTo(3));
+
+          // Should have authentication state changes
+          final hasAuthenticatedState = stateHistory.any(
+            (state) => state.status == AuthStatus.authenticated,
+          );
+          expect(hasAuthenticatedState, isTrue);
+
+          // Should end unauthenticated
+          expect(stateHistory.last.status, AuthStatus.unauthenticated);
+
+          await subscription.cancel();
+        },
+      );
     });
 
     group('QuestionAuth Singleton Integration', () {
@@ -680,23 +727,31 @@ void main() {
           timeout: const Duration(seconds: 30),
           enableLogging: false,
         );
-        
+
         await QuestionAuth.instance.initialize();
 
         // Assert
         expect(QuestionAuth.instance.isAuthenticated, isFalse);
-        expect(QuestionAuth.instance.currentAuthState.status, AuthStatus.unauthenticated);
+        expect(
+          QuestionAuth.instance.currentAuthState.status,
+          AuthStatus.unauthenticated,
+        );
         expect(QuestionAuth.instance.authStateStream, isA<Stream<AuthState>>());
       });
 
       test('should handle authentication through singleton', () async {
         // Arrange
-        QuestionAuth.instance.configure(baseUrl: 'https://test-api.com/api/v1/');
+        QuestionAuth.instance.configure(
+          baseUrl: 'https://test-api.com/api/v1/',
+        );
         await QuestionAuth.instance.initialize();
 
         // Act & Assert - Test singleton functionality
         expect(QuestionAuth.instance.isAuthenticated, isFalse);
-        expect(QuestionAuth.instance.currentAuthState.status, AuthStatus.unauthenticated);
+        expect(
+          QuestionAuth.instance.currentAuthState.status,
+          AuthStatus.unauthenticated,
+        );
         expect(QuestionAuth.instance.authStateStream, isNotNull);
       });
     });
@@ -712,18 +767,20 @@ void main() {
       test('should handle intermittent network connectivity', () async {
         // Arrange - Simulate network failure then recovery
         final loginRequest = AuthTestUtils.createValidLoginRequest();
-        
+
         // First attempt with network error
         final networkErrorClient = NetworkErrorMockApiClient();
         final networkErrorRepository = AuthRepositoryImpl(
           apiClient: networkErrorClient,
           tokenManager: mockTokenManager,
         );
-        final networkErrorService = AuthServiceImpl(repository: networkErrorRepository);
+        final networkErrorService = AuthServiceImpl(
+          repository: networkErrorRepository,
+        );
 
         // Act - First attempt
         final firstResult = await networkErrorService.login(loginRequest);
-        
+
         // Assert - First attempt fails
         expect(firstResult.success, isFalse);
         expect(firstResult.error, contains('Network'));
@@ -735,11 +792,13 @@ void main() {
           apiClient: successfulClient,
           tokenManager: mockTokenManager,
         );
-        final successfulService = AuthServiceImpl(repository: successfulRepository);
+        final successfulService = AuthServiceImpl(
+          repository: successfulRepository,
+        );
 
         // Act - Second attempt
         final secondResult = await successfulService.login(loginRequest);
-        
+
         // Assert - Second attempt succeeds
         expect(secondResult.success, isTrue);
         expect(successfulService.isAuthenticated, isTrue);
@@ -771,7 +830,7 @@ void main() {
       test('should handle token corruption scenarios', () async {
         // Arrange - Simulate corrupted token
         mockTokenManager.simulateToken('corrupted-token');
-        
+
         final apiErrorClient = ApiErrorMockApiClient(
           statusCode: 401,
           message: 'Invalid token format',
@@ -788,8 +847,11 @@ void main() {
 
         // Assert
         expect(errorAuthService.isAuthenticated, isFalse);
-        expect(errorAuthService.currentAuthState.status, AuthStatus.unauthenticated);
-        
+        expect(
+          errorAuthService.currentAuthState.status,
+          AuthStatus.unauthenticated,
+        );
+
         // Token should be cleared
         final clearedToken = await mockTokenManager.getToken();
         expect(clearedToken, isNull);
@@ -803,11 +865,14 @@ void main() {
           tokenManager: mockTokenManager,
         );
         authService = AuthServiceImpl(repository: repository);
-        
+
         final loginRequest = AuthTestUtils.createValidLoginRequest();
 
         // Act - Make concurrent login requests
-        final futures = List.generate(3, (_) => authService.login(loginRequest));
+        final futures = List.generate(
+          3,
+          (_) => authService.login(loginRequest),
+        );
         final results = await Future.wait(futures);
 
         // Assert - All should succeed (or handle gracefully)

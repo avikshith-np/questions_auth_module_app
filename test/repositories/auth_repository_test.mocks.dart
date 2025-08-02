@@ -9,6 +9,7 @@ import 'package:mockito/mockito.dart' as _i1;
 import 'package:question_auth/src/core/token_manager.dart' as _i6;
 import 'package:question_auth/src/models/auth_request.dart' as _i5;
 import 'package:question_auth/src/models/auth_response.dart' as _i2;
+import 'package:question_auth/src/models/user.dart' as _i7;
 import 'package:question_auth/src/services/api_client.dart' as _i3;
 
 // ignore_for_file: type=lint
@@ -195,4 +196,78 @@ class MockTokenManager extends _i1.Mock implements _i6.TokenManager {
             returnValue: _i4.Future<DateTime?>.value(),
           )
           as _i4.Future<DateTime?>);
+
+  @override
+  _i4.Future<void> saveUserProfile(_i6.UserProfileData? profileData) =>
+      (super.noSuchMethod(
+            Invocation.method(#saveUserProfile, [profileData]),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<_i6.UserProfileData?> getUserProfile() =>
+      (super.noSuchMethod(
+            Invocation.method(#getUserProfile, []),
+            returnValue: _i4.Future<_i6.UserProfileData?>.value(),
+          )
+          as _i4.Future<_i6.UserProfileData?>);
+
+  @override
+  _i4.Future<void> clearUserProfile() =>
+      (super.noSuchMethod(
+            Invocation.method(#clearUserProfile, []),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<bool> hasUserProfile() =>
+      (super.noSuchMethod(
+            Invocation.method(#hasUserProfile, []),
+            returnValue: _i4.Future<bool>.value(false),
+          )
+          as _i4.Future<bool>);
+
+  @override
+  _i4.Future<void> updateUserProfile({
+    _i7.User? user,
+    List<String>? userRoles,
+    Map<String, bool>? profileComplete,
+    bool? onboardingComplete,
+    String? appAccess,
+    List<String>? availableRoles,
+    List<String>? incompleteRoles,
+    String? mode,
+    String? viewType,
+    String? redirectTo,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#updateUserProfile, [], {
+              #user: user,
+              #userRoles: userRoles,
+              #profileComplete: profileComplete,
+              #onboardingComplete: onboardingComplete,
+              #appAccess: appAccess,
+              #availableRoles: availableRoles,
+              #incompleteRoles: incompleteRoles,
+              #mode: mode,
+              #viewType: viewType,
+              #redirectTo: redirectTo,
+            }),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
+
+  @override
+  _i4.Future<void> clearAll() =>
+      (super.noSuchMethod(
+            Invocation.method(#clearAll, []),
+            returnValue: _i4.Future<void>.value(),
+            returnValueForMissingStub: _i4.Future<void>.value(),
+          )
+          as _i4.Future<void>);
 }

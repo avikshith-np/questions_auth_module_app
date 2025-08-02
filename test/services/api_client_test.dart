@@ -7,8 +7,6 @@ import 'package:mockito/mockito.dart';
 import 'package:question_auth/src/services/api_client.dart';
 import 'package:question_auth/src/core/exceptions.dart';
 import 'package:question_auth/src/models/auth_request.dart';
-import 'package:question_auth/src/models/auth_response.dart';
-import 'package:question_auth/src/models/user.dart';
 
 import 'api_client_test.mocks.dart';
 

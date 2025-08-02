@@ -130,6 +130,10 @@ class AuthRepositoryImpl implements AuthRepository {
       await _tokenManager.saveToken(loginResponse.token);
       _apiClient.setAuthToken(loginResponse.token);
       
+      // Store user profile data for persistence
+      final profileData = UserProfileData.fromLoginResponse(loginResponse);
+      await _tokenManager.saveUserProfile(profileData);
+      
       // Return successful AuthResult with rich user profile data
       return AuthResult.success(
         user: loginResponse.user,
@@ -169,6 +173,10 @@ class AuthRepositoryImpl implements AuthRepository {
       // Make API call to get comprehensive user profile
       final userProfileResponse = await _apiClient.getCurrentUser();
       
+      // Update stored user profile data with latest information
+      final profileData = UserProfileData.fromUserProfileResponse(userProfileResponse);
+      await _tokenManager.saveUserProfile(profileData);
+      
       return userProfileResponse;
     } catch (e) {
       if (e is AuthException) {
@@ -195,12 +203,12 @@ class AuthRepositoryImpl implements AuthRepository {
         }
       }
       
-      // Always clear local token and API client token
-      await _tokenManager.clearToken();
+      // Always clear all authentication data (token and user profile)
+      await _tokenManager.clearAll();
       _apiClient.clearAuthToken();
     } catch (e) {
-      // Ensure we always clear the token even if there's an error
-      await _tokenManager.clearToken();
+      // Ensure we always clear all data even if there's an error
+      await _tokenManager.clearAll();
       _apiClient.clearAuthToken();
       
       if (e is AuthException) {
@@ -232,12 +240,12 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<void> clearExpiredToken() async {
     try {
-      await _tokenManager.clearToken();
+      await _tokenManager.clearAll();
       _apiClient.clearAuthToken();
     } catch (e) {
       // Ensure we always try to clear even if there's an error
       try {
-        await _tokenManager.clearToken();
+        await _tokenManager.clearAll();
       } catch (_) {}
       try {
         _apiClient.clearAuthToken();
@@ -247,6 +255,64 @@ class AuthRepositoryImpl implements AuthRepository {
         rethrow;
       }
       throw NetworkException('Unexpected error clearing expired token: ${e.toString()}');
+    }
+  }
+
+  /// Get stored user profile data
+  /// 
+  /// Returns [UserProfileData] if available, null otherwise
+  Future<UserProfileData?> getStoredUserProfile() async {
+    try {
+      return await _tokenManager.getUserProfile();
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Check if user profile data is stored
+  /// 
+  /// Returns true if profile data is available, false otherwise
+  Future<bool> hasStoredUserProfile() async {
+    try {
+      return await _tokenManager.hasUserProfile();
+    } catch (e) {
+      return false;
+    }
+  }
+
+  /// Update stored user profile data
+  /// 
+  /// Updates specific fields in the stored user profile
+  Future<void> updateStoredUserProfile({
+    User? user,
+    List<String>? userRoles,
+    Map<String, bool>? profileComplete,
+    bool? onboardingComplete,
+    String? appAccess,
+    List<String>? availableRoles,
+    List<String>? incompleteRoles,
+    String? mode,
+    String? viewType,
+    String? redirectTo,
+  }) async {
+    try {
+      await _tokenManager.updateUserProfile(
+        user: user,
+        userRoles: userRoles,
+        profileComplete: profileComplete,
+        onboardingComplete: onboardingComplete,
+        appAccess: appAccess,
+        availableRoles: availableRoles,
+        incompleteRoles: incompleteRoles,
+        mode: mode,
+        viewType: viewType,
+        redirectTo: redirectTo,
+      );
+    } catch (e) {
+      if (e is AuthException) {
+        rethrow;
+      }
+      throw NetworkException('Unexpected error updating user profile: ${e.toString()}');
     }
   }
 }

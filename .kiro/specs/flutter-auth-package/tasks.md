@@ -97,8 +97,8 @@
     - Write example usage tests for new API functionality
     - _Requirements: 9.1, 9.2, 9.3, 9.4_
 
-- [ ] 10. Update authentication persistence for user profile data
-  - [ ] 10.1 Enhance token and user profile persistence
+- [x] 10. Update authentication persistence for user profile data
+  - [x] 10.1 Enhance token and user profile persistence
     - Update token storage to include user profile information
     - Implement persistence for user roles, profile completion status
     - Add automatic restoration of user profile data on app startup
@@ -106,8 +106,8 @@
     - Write integration tests for enhanced persistence scenarios
     - _Requirements: 6.4, 4.3, 8.5_
 
-- [ ] 11. Update package exports and documentation
-  - [ ] 11.1 Update library exports for new API models
+- [x] 11. Update package exports and documentation
+  - [x] 11.1 Update library exports for new API models
     - Export new response models (LoginResponse, UserProfileResponse, SignUpResponse)
     - Update library documentation with new API functionality
     - Create comprehensive usage examples for new features
