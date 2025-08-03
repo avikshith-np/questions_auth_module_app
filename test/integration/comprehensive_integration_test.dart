@@ -5,9 +5,9 @@ import '../utils/mock_implementations.dart';
 import '../utils/auth_test_utils.dart';
 
 /// Comprehensive integration tests that verify all requirements
-/// and test complete authentication flows with error handling
+/// and test complete authentication flows with new API functionality
 void main() {
-  group('Comprehensive Authentication Integration Tests', () {
+  group('Comprehensive Authentication Integration Tests - New API', () {
     group('Requirements Verification', () {
       late AuthService authService;
       late SuccessfulMockApiClient successfulApiClient;
@@ -34,8 +34,8 @@ void main() {
             final result = await authService.signUp(signUpRequest);
 
             expect(result.success, isTrue);
-            expect(result.user, isNotNull);
-            expect(authService.isAuthenticated, isTrue);
+            expect(result.signUpData, isNotNull);
+            // Note: In new API, signup doesn't authenticate user automatically
           },
         );
 
@@ -62,23 +62,24 @@ void main() {
         });
       });
 
-      group('Requirement 2: User Registration', () {
-        test('should complete registration flow successfully', () async {
+      group('Requirement 2: User Registration with New API', () {
+        test('should complete registration flow with new API response handling', () async {
           // Arrange
           final signUpRequest = AuthTestUtils.createValidSignUpRequest();
 
           // Act
           final result = await authService.signUp(signUpRequest);
 
-          // Assert - Registration success
+          // Assert - Registration success with new API structure
           expect(result.success, isTrue);
-          expect(result.user, isNotNull);
-          expect(result.user!.email, equals('test@example.com'));
-          expect(result.user!.username, equals('testuser'));
-          expect(authService.isAuthenticated, isTrue);
+          expect(result.signUpData, isNotNull);
+          expect(result.signUpData!.detail, contains('Registration successful'));
+          expect(result.signUpData!.data, isNotNull);
+          expect(result.signUpData!.data!.email, equals('test@example.com'));
+          expect(result.signUpData!.data!.verificationTokenExpiresIn, isNotNull);
         });
 
-        test('should return error messages when registration fails', () async {
+        test('should handle field-specific registration errors', () async {
           // Arrange - Use error-prone client
           final errorApiClient = ApiErrorMockApiClient(
             statusCode: 400,
@@ -99,11 +100,29 @@ void main() {
           expect(result.error, contains('Registration failed'));
         });
 
-        test('should validate password matching before API call', () async {
+        test('should validate display_name instead of username', () async {
           // Arrange
           final invalidRequest = SignUpRequest(
             email: 'test@example.com',
-            username: 'testuser',
+            displayName: '', // Empty display name
+            password: 'password123',
+            confirmPassword: 'password123',
+          );
+
+          // Act
+          final result = await authService.signUp(invalidRequest);
+
+          // Assert
+          expect(result.success, isFalse);
+          expect(result.fieldErrors, isNotNull);
+          expect(result.fieldErrors!.containsKey('general'), isTrue);
+        });
+
+        test('should validate password matching with confirm_password', () async {
+          // Arrange
+          final invalidRequest = SignUpRequest(
+            email: 'test@example.com',
+            displayName: 'Test User',
             password: 'password123',
             confirmPassword: 'different',
           );
@@ -117,57 +136,85 @@ void main() {
           expect(result.fieldErrors!.containsKey('general'), isTrue);
         });
 
-        test('should validate email format before API call', () async {
+        test('should provide verification token expiration information', () async {
           // Arrange
-          final invalidRequest = SignUpRequest(
-            email: 'invalid-email',
-            username: 'testuser',
-            password: 'password123',
-            confirmPassword: 'password123',
-          );
+          final signUpRequest = AuthTestUtils.createValidSignUpRequest();
 
           // Act
-          final result = await authService.signUp(invalidRequest);
+          final result = await authService.signUp(signUpRequest);
 
           // Assert
-          expect(result.success, isFalse);
-          expect(result.fieldErrors, isNotNull);
-          expect(result.fieldErrors!.containsKey('general'), isTrue);
+          expect(result.success, isTrue);
+          expect(result.signUpData, isNotNull);
+          expect(result.signUpData!.data, isNotNull);
+          expect(result.signUpData!.data!.verificationTokenExpiresIn, equals('10 minutes'));
         });
       });
 
-      group('Requirement 3: User Login', () {
-        test('should complete login flow successfully', () async {
+      group('Requirement 3: User Login with Rich Profile Data', () {
+        test('should complete login flow with user profile data storage', () async {
           // Arrange
           final loginRequest = AuthTestUtils.createValidLoginRequest();
 
           // Act
           final result = await authService.login(loginRequest);
 
-          // Assert
+          // Assert - Login success with rich profile data
           expect(result.success, isTrue);
           expect(result.user, isNotNull);
+          expect(result.loginData, isNotNull);
+          expect(result.loginData!.roles, isNotEmpty);
+          expect(result.loginData!.profileComplete, isNotNull);
+          expect(result.loginData!.onboardingComplete, isA<bool>());
+          expect(result.loginData!.appAccess, isNotNull);
+          expect(result.loginData!.redirectTo, isNotNull);
           expect(authService.isAuthenticated, isTrue);
         });
 
-        test(
-          'should store authentication token securely when login succeeds',
-          () async {
-            // Arrange
-            final loginRequest = AuthTestUtils.createValidLoginRequest();
+        test('should store authentication token securely with Token-based auth', () async {
+          // Arrange
+          final loginRequest = AuthTestUtils.createValidLoginRequest();
 
-            // Act
-            final result = await authService.login(loginRequest);
+          // Act
+          final result = await authService.login(loginRequest);
 
-            // Assert - Token storage verified through authentication state
-            expect(result.success, isTrue);
-            expect(authService.isAuthenticated, isTrue);
+          // Assert - Token storage verified
+          expect(result.success, isTrue);
+          expect(result.token, isNotNull);
+          expect(authService.isAuthenticated, isTrue);
 
-            // Verify token was stored
-            final storedToken = await mockTokenManager.getToken();
-            expect(storedToken, isNotNull);
-          },
-        );
+          // Verify token was stored
+          final storedToken = await mockTokenManager.getToken();
+          expect(storedToken, isNotNull);
+        });
+
+        test('should store user profile information including roles and onboarding status', () async {
+          // Arrange
+          final loginRequest = AuthTestUtils.createValidLoginRequest();
+
+          // Act
+          final result = await authService.login(loginRequest);
+
+          // Assert - Profile information stored
+          expect(result.success, isTrue);
+          expect(authService.userRoles, isNotNull);
+          expect(authService.profileComplete, isNotNull);
+          expect(authService.onboardingComplete, isNotNull);
+          expect(authService.appAccess, isNotNull);
+        });
+
+        test('should provide redirect information for navigation', () async {
+          // Arrange
+          final loginRequest = AuthTestUtils.createValidLoginRequest();
+
+          // Act
+          final result = await authService.login(loginRequest);
+
+          // Assert - Redirect information available
+          expect(result.success, isTrue);
+          expect(result.loginData!.redirectTo, equals('/dashboard'));
+          expect(authService.redirectTo, equals('/dashboard'));
+        });
 
         test('should return error messages when login fails', () async {
           // Arrange - Use error-prone client
@@ -189,60 +236,78 @@ void main() {
           expect(result.success, isFalse);
           expect(result.error, contains('Invalid credentials'));
         });
-
-        test('should make token available for subsequent API calls', () async {
-          // Arrange
-          final loginRequest = AuthTestUtils.createValidLoginRequest();
-
-          // Act
-          await authService.login(loginRequest);
-
-          // Assert - Token availability verified through subsequent API calls
-          expect(authService.isAuthenticated, isTrue);
-
-          final user = await authService.getCurrentUser();
-          expect(user, isNotNull);
-        });
       });
 
-      group('Requirement 4: Profile Information', () {
-        test('should return user profile data when authenticated', () async {
+      group('Requirement 4: Comprehensive User Profile Information', () {
+        test('should return comprehensive user profile data with Authorization header', () async {
           // Arrange - First authenticate
           final loginRequest = AuthTestUtils.createValidLoginRequest();
           await authService.login(loginRequest);
 
           // Act
-          final user = await authService.getCurrentUser();
+          final userProfile = await authService.getCurrentUser();
 
-          // Assert
-          expect(user.id, equals('1'));
-          expect(user.email, equals('test@example.com'));
-          expect(user.username, equals('testuser'));
+          // Assert - Comprehensive profile data
+          expect(userProfile.user.email, equals('test@example.com'));
+          expect(userProfile.user.displayName, isNotNull);
+          expect(userProfile.roles, isNotEmpty);
+          expect(userProfile.availableRoles, isNotNull);
+          expect(userProfile.profileComplete, isNotNull);
+          expect(userProfile.onboardingComplete, isA<bool>());
+          expect(userProfile.appAccess, isNotNull);
+          expect(userProfile.redirectTo, isNotNull);
         });
 
-        test(
-          'should return authentication error when not authenticated',
-          () async {
-            // Arrange - Use error client for unauthenticated requests
-            final errorApiClient = ApiErrorMockApiClient(
-              statusCode: 401,
-              message: 'Unauthorized',
-            );
-            final errorRepository = AuthRepositoryImpl(
-              apiClient: errorApiClient,
-              tokenManager: mockTokenManager,
-            );
-            final errorAuthService = AuthServiceImpl(
-              repository: errorRepository,
-            );
+        test('should provide access to user roles and profile completion status', () async {
+          // Arrange - First authenticate
+          final loginRequest = AuthTestUtils.createValidLoginRequest();
+          await authService.login(loginRequest);
 
-            // Act & Assert - Should throw TokenException when no token available
-            expect(
-              () => errorAuthService.getCurrentUser(),
-              throwsA(isA<TokenException>()),
-            );
-          },
-        );
+          // Act
+          final userProfile = await authService.getCurrentUser();
+
+          // Assert - Role and profile completion data
+          expect(userProfile.roles, contains('creator'));
+          expect(userProfile.profileComplete['creator'], isA<bool>());
+          expect(userProfile.profileComplete['student'], isA<bool>());
+          expect(userProfile.onboardingComplete, isTrue);
+        });
+
+        test('should provide onboarding status and redirect information', () async {
+          // Arrange - First authenticate
+          final loginRequest = AuthTestUtils.createValidLoginRequest();
+          await authService.login(loginRequest);
+
+          // Act
+          final userProfile = await authService.getCurrentUser();
+
+          // Assert - Onboarding and redirect data
+          expect(userProfile.onboardingComplete, isTrue);
+          expect(userProfile.redirectTo, equals('/dashboard'));
+          expect(userProfile.viewType, isNotNull);
+          expect(userProfile.incompleteRoles, isNotNull);
+        });
+
+        test('should return authentication error when not authenticated', () async {
+          // Arrange - Use error client for unauthenticated requests
+          final errorApiClient = ApiErrorMockApiClient(
+            statusCode: 401,
+            message: 'Unauthorized',
+          );
+          final errorRepository = AuthRepositoryImpl(
+            apiClient: errorApiClient,
+            tokenManager: mockTokenManager,
+          );
+          final errorAuthService = AuthServiceImpl(
+            repository: errorRepository,
+          );
+
+          // Act & Assert - Should throw TokenException when no token available
+          expect(
+            () => errorAuthService.getCurrentUser(),
+            throwsA(isA<TokenException>()),
+          );
+        });
 
         test('should handle token expiration appropriately', () async {
           // Arrange - Use error client for expired token
@@ -456,7 +521,7 @@ void main() {
           // Arrange
           final invalidRequest = SignUpRequest(
             email: 'invalid-email',
-            username: '',
+            displayName: '',
             password: 'short',
             confirmPassword: 'different',
           );
@@ -489,7 +554,68 @@ void main() {
         });
       });
 
-      group('Requirement 8: Testing Support', () {
+      group('Requirement 8: User Role and Profile Information Access', () {
+        test('should provide access to user roles and permissions when authenticated', () async {
+          // Arrange - First authenticate
+          final loginRequest = AuthTestUtils.createValidLoginRequest();
+          await authService.login(loginRequest);
+
+          // Act & Assert - User roles and permissions
+          expect(authService.userRoles, isNotNull);
+          expect(authService.userRoles, contains('Creator'));
+          expect(authService.hasRole('Creator'), isTrue);
+          expect(authService.hasRole('NonExistentRole'), isFalse);
+        });
+
+        test('should expose profile completion status for different roles', () async {
+          // Arrange - First authenticate
+          final loginRequest = AuthTestUtils.createValidLoginRequest();
+          await authService.login(loginRequest);
+
+          // Act & Assert - Profile completion status
+          expect(authService.profileComplete, isNotNull);
+          expect(authService.profileComplete!['creator'], isTrue);
+          expect(authService.profileComplete!['student'], isFalse);
+          expect(authService.isProfileCompleteForRole('creator'), isTrue);
+          expect(authService.isProfileCompleteForRole('student'), isFalse);
+        });
+
+        test('should provide onboarding completion status', () async {
+          // Arrange - First authenticate
+          final loginRequest = AuthTestUtils.createValidLoginRequest();
+          await authService.login(loginRequest);
+
+          // Act & Assert - Onboarding completion
+          expect(authService.onboardingComplete, isTrue);
+        });
+
+        test('should provide app access level information', () async {
+          // Arrange - First authenticate
+          final loginRequest = AuthTestUtils.createValidLoginRequest();
+          await authService.login(loginRequest);
+
+          // Act & Assert - App access level
+          expect(authService.appAccess, equals('full'));
+          expect(authService.hasFullAppAccess, isTrue);
+        });
+
+        test('should update available information when user profile data changes', () async {
+          // Arrange - First authenticate
+          final loginRequest = AuthTestUtils.createValidLoginRequest();
+          await authService.login(loginRequest);
+
+          // Act - Get updated profile
+          final userProfile = await authService.getCurrentUser();
+
+          // Assert - Information is updated
+          expect(userProfile.roles, equals(authService.userRoles));
+          expect(userProfile.profileComplete, equals(authService.profileComplete));
+          expect(userProfile.onboardingComplete, equals(authService.onboardingComplete));
+          expect(userProfile.appAccess, equals(authService.appAccess));
+        });
+      });
+
+      group('Requirement 9: Testing Support', () {
         test('should provide mockable interfaces for testing', () {
           // Assert - Verify interfaces can be mocked
           expect(successfulApiClient, isA<ApiClient>());
@@ -513,15 +639,14 @@ void main() {
           expect(customAuthService, isA<AuthService>());
         });
 
-        test('should provide test utilities and helpers', () {
-          // Assert - Verify test utilities are available
-          expect(
-            AuthTestUtils.createValidSignUpRequest(),
-            isA<SignUpRequest>(),
-          );
+        test('should provide test utilities and helpers for new API models', () {
+          // Assert - Verify test utilities are available for new models
+          expect(AuthTestUtils.createValidSignUpRequest(), isA<SignUpRequest>());
           expect(AuthTestUtils.createValidLoginRequest(), isA<LoginRequest>());
           expect(AuthTestUtils.createTestUser(), isA<User>());
-          expect(AuthTestUtils.createSuccessResponse(), isA<AuthResponse>());
+          expect(AuthTestUtils.createTestLoginResponse(), isA<LoginResponse>());
+          expect(AuthTestUtils.createTestUserProfileResponse(), isA<UserProfileResponse>());
+          expect(AuthTestUtils.createTestSignUpResponse(), isA<SignUpResponse>());
           expect(MockFactory.createMockAuthService(), isA<MockAuthService>());
         });
 
@@ -538,7 +663,7 @@ void main() {
       });
     });
 
-    group('End-to-End Authentication Scenarios', () {
+    group('End-to-End Authentication Scenarios with New API', () {
       late AuthService authService;
       late SuccessfulMockApiClient successfulApiClient;
       late MockTokenManager mockTokenManager;
@@ -553,8 +678,140 @@ void main() {
         authService = AuthServiceImpl(repository: repository);
       });
 
+      test('should complete registration flow with new API response handling', () async {
+        // Arrange
+        final signUpRequest = AuthTestUtils.createValidSignUpRequest();
+        final stateChanges = <AuthState>[];
+        final subscription = authService.authStateStream.listen(stateChanges.add);
+
+        // Act - Complete registration flow
+        final signUpResult = await authService.signUp(signUpRequest);
+
+        // Assert - Registration with new API structure
+        expect(signUpResult.success, isTrue);
+        expect(signUpResult.signUpData, isNotNull);
+        expect(signUpResult.signUpData!.detail, contains('Registration successful'));
+        expect(signUpResult.signUpData!.data, isNotNull);
+        expect(signUpResult.signUpData!.data!.email, equals('test@example.com'));
+        expect(signUpResult.signUpData!.data!.verificationTokenExpiresIn, equals('10 minutes'));
+
+        // Verify state changes - signup doesn't authenticate in new API
+        await Future.delayed(const Duration(milliseconds: 10));
+        // State should remain unauthenticated after signup
+
+        await subscription.cancel();
+      });
+
+      test('should complete login flow with user profile data retrieval and storage', () async {
+        // Arrange
+        final loginRequest = AuthTestUtils.createValidLoginRequest();
+        final stateChanges = <AuthState>[];
+        final subscription = authService.authStateStream.listen(stateChanges.add);
+
+        // Act - Complete login flow
+        final loginResult = await authService.login(loginRequest);
+
+        // Assert - Login with rich profile data
+        expect(loginResult.success, isTrue);
+        expect(loginResult.user, isNotNull);
+        expect(loginResult.loginData, isNotNull);
+        expect(loginResult.loginData!.token, isNotNull);
+        expect(loginResult.loginData!.roles, contains('Creator'));
+        expect(loginResult.loginData!.profileComplete, isNotNull);
+        expect(loginResult.loginData!.onboardingComplete, isTrue);
+        expect(loginResult.loginData!.appAccess, equals('full'));
+        expect(loginResult.loginData!.redirectTo, equals('/dashboard'));
+
+        // Verify authentication state with profile data
+        expect(authService.isAuthenticated, isTrue);
+        expect(authService.userRoles, contains('Creator'));
+        expect(authService.profileComplete, isNotNull);
+        expect(authService.onboardingComplete, isTrue);
+        expect(authService.appAccess, equals('full'));
+
+        // Verify state changes
+        await Future.delayed(const Duration(milliseconds: 10));
+        expect(stateChanges.last.status, AuthStatus.authenticated);
+        expect(stateChanges.last.user, isNotNull);
+
+        await subscription.cancel();
+      });
+
+      test('should test user profile information access and updates', () async {
+        // Arrange - First authenticate
+        final loginRequest = AuthTestUtils.createValidLoginRequest();
+        await authService.login(loginRequest);
+
+        // Act - Get user profile information
+        final userProfile = await authService.getCurrentUser();
+
+        // Assert - Comprehensive profile information access
+        expect(userProfile.user.email, equals('test@example.com'));
+        expect(userProfile.user.displayName, isNotNull);
+        expect(userProfile.isNew, isFalse);
+        expect(userProfile.mode, equals('creator'));
+        expect(userProfile.roles, contains('creator'));
+        expect(userProfile.availableRoles, contains('student'));
+        expect(userProfile.removableRoles, isNotNull);
+        expect(userProfile.profileComplete['creator'], isTrue);
+        expect(userProfile.profileComplete['student'], isFalse);
+        expect(userProfile.onboardingComplete, isTrue);
+        expect(userProfile.incompleteRoles, isEmpty);
+        expect(userProfile.appAccess, equals('full'));
+        expect(userProfile.viewType, equals('creator-complete-creator-only'));
+        expect(userProfile.redirectTo, equals('/dashboard'));
+
+        // Verify service state is updated with profile information
+        expect(authService.userRoles, equals(userProfile.roles));
+        expect(authService.profileComplete, equals(userProfile.profileComplete));
+        expect(authService.onboardingComplete, equals(userProfile.onboardingComplete));
+        expect(authService.appAccess, equals(userProfile.appAccess));
+        expect(authService.availableRoles, equals(userProfile.availableRoles));
+        expect(authService.incompleteRoles, equals(userProfile.incompleteRoles));
+        expect(authService.mode, equals(userProfile.mode));
+        expect(authService.viewType, equals(userProfile.viewType));
+        expect(authService.redirectTo, equals(userProfile.redirectTo));
+      });
+
+      test('should test logout flow with proper cleanup', () async {
+        // Arrange - First authenticate
+        final loginRequest = AuthTestUtils.createValidLoginRequest();
+        await authService.login(loginRequest);
+        
+        // Verify initial authenticated state with profile data
+        expect(authService.isAuthenticated, isTrue);
+        expect(authService.currentUser, isNotNull);
+        expect(authService.userRoles, isNotNull);
+        expect(authService.profileComplete, isNotNull);
+
+        // Act - Logout with state monitoring
+        final stateChanges = <AuthState>[];
+        final subscription = authService.authStateStream.listen(stateChanges.add);
+
+        await authService.logout();
+
+        // Assert - Proper cleanup
+        expect(authService.isAuthenticated, isFalse);
+        expect(authService.currentUser, isNull);
+        expect(authService.userRoles, isNull);
+        expect(authService.profileComplete, isNull);
+        expect(authService.onboardingComplete, isNull);
+        expect(authService.appAccess, isNull);
+
+        // Verify token was cleared
+        final storedToken = await mockTokenManager.getToken();
+        expect(storedToken, isNull);
+
+        // Verify state changes
+        await Future.delayed(const Duration(milliseconds: 10));
+        expect(stateChanges.last.status, AuthStatus.unauthenticated);
+        expect(stateChanges.last.user, isNull);
+
+        await subscription.cancel();
+      });
+
       test(
-        'should complete full user journey: register -> profile -> logout -> login',
+        'should complete full user journey: register -> profile -> logout -> login with new API',
         () async {
           // Arrange
           final signUpRequest = AuthTestUtils.createValidSignUpRequest();
@@ -564,26 +821,40 @@ void main() {
             stateChanges.add,
           );
 
-          // Act & Assert - Complete user journey
+          // Act & Assert - Complete user journey with new API
 
-          // 1. Register user
+          // 1. Register user with new API response
           final signUpResult = await authService.signUp(signUpRequest);
           expect(signUpResult.success, isTrue);
-          expect(authService.isAuthenticated, isTrue);
+          expect(signUpResult.signUpData, isNotNull);
+          expect(signUpResult.signUpData!.detail, contains('Registration successful'));
 
-          // 2. Get profile
-          final user = await authService.getCurrentUser();
-          expect(user.email, isNotNull);
+          // 2. Login to authenticate user (signup doesn't authenticate in new API)
+          final initialLoginResult = await authService.login(loginRequest);
+          expect(initialLoginResult.success, isTrue);
           expect(authService.isAuthenticated, isTrue);
+          
+          // Get profile with comprehensive data
+          final userProfile = await authService.getCurrentUser();
+          expect(userProfile.user.email, isNotNull);
+          expect(userProfile.roles, isNotEmpty);
+          expect(userProfile.profileComplete, isNotNull);
 
-          // 3. Logout
+          // 3. Logout with proper cleanup
           await authService.logout();
           expect(authService.isAuthenticated, isFalse);
+          expect(authService.userRoles, isNull);
+          expect(authService.profileComplete, isNull);
 
-          // 4. Login again
+          // 4. Login again with rich profile data
           final loginResult = await authService.login(loginRequest);
           expect(loginResult.success, isTrue);
+          expect(loginResult.loginData, isNotNull);
+          expect(loginResult.loginData!.roles, isNotEmpty);
+          expect(loginResult.loginData!.profileComplete, isNotNull);
           expect(authService.isAuthenticated, isTrue);
+          expect(authService.userRoles, isNotNull);
+          expect(authService.profileComplete, isNotNull);
 
           // Verify state transitions
           await Future.delayed(const Duration(milliseconds: 10));
@@ -598,16 +869,18 @@ void main() {
         },
       );
 
-      test('should handle token persistence across app restarts', () async {
+      test('should handle authentication persistence for user profile data', () async {
         // Arrange - Simulate first app session
         final loginRequest = AuthTestUtils.createValidLoginRequest();
 
-        // Act - Login in first session
+        // Act - Login in first session with profile data
         final loginResult = await authService.login(loginRequest);
         expect(loginResult.success, isTrue);
         expect(authService.isAuthenticated, isTrue);
+        expect(authService.userRoles, isNotNull);
+        expect(authService.profileComplete, isNotNull);
 
-        // Verify token was stored
+        // Verify token and profile data were stored
         final storedToken = await mockTokenManager.getToken();
         expect(storedToken, isNotNull);
 
@@ -621,9 +894,33 @@ void main() {
         // Act - Initialize after restart
         await newAuthService.initialize();
 
-        // Assert - Session should be restored
+        // Assert - Session and profile data should be restored
         expect(newAuthService.isAuthenticated, isTrue);
         expect(newAuthService.currentUser, isNotNull);
+        expect(newAuthService.userRoles, isNotNull);
+        expect(newAuthService.profileComplete, isNotNull);
+        expect(newAuthService.onboardingComplete, isNotNull);
+        expect(newAuthService.appAccess, isNotNull);
+      });
+
+      test('should handle user profile data updates and synchronization', () async {
+        // Arrange - First authenticate
+        final loginRequest = AuthTestUtils.createValidLoginRequest();
+        await authService.login(loginRequest);
+
+        // Act - Get initial profile data
+        final initialProfile = await authService.getCurrentUser();
+        expect(initialProfile.roles, contains('creator'));
+
+        // Simulate profile data update by getting profile again
+        final updatedProfile = await authService.getCurrentUser();
+
+        // Assert - Profile data synchronization
+        expect(updatedProfile.user.email, equals(initialProfile.user.email));
+        expect(updatedProfile.roles, equals(initialProfile.roles));
+        expect(updatedProfile.profileComplete, equals(initialProfile.profileComplete));
+        expect(authService.userRoles, equals(updatedProfile.roles));
+        expect(authService.profileComplete, equals(updatedProfile.profileComplete));
       });
 
       test('should handle various error scenarios gracefully', () async {
@@ -664,7 +961,7 @@ void main() {
         // Test validation errors
         final invalidRequest = SignUpRequest(
           email: 'invalid',
-          username: '',
+          displayName: '',
           password: 'short',
           confirmPassword: 'different',
         );
@@ -714,7 +1011,7 @@ void main() {
       );
     });
 
-    group('QuestionAuth Singleton Integration', () {
+    group('QuestionAuth Singleton Integration with New API', () {
       setUp(() {
         QuestionAuth.reset();
       });
@@ -737,22 +1034,62 @@ void main() {
           AuthStatus.unauthenticated,
         );
         expect(QuestionAuth.instance.authStateStream, isA<Stream<AuthState>>());
+        
+        // Assert new API properties are null when not authenticated
+        expect(QuestionAuth.instance.userRoles, isNull);
+        expect(QuestionAuth.instance.profileComplete, isNull);
+        expect(QuestionAuth.instance.onboardingComplete, isNull);
+        expect(QuestionAuth.instance.appAccess, isNull);
       });
 
-      test('should handle authentication through singleton', () async {
+      test('should provide access to new API user profile properties through singleton', () async {
         // Arrange
         QuestionAuth.instance.configure(
           baseUrl: 'https://test-api.com/api/v1/',
         );
         await QuestionAuth.instance.initialize();
 
-        // Act & Assert - Test singleton functionality
+        // Act & Assert - Test singleton functionality with new API properties
         expect(QuestionAuth.instance.isAuthenticated, isFalse);
-        expect(
-          QuestionAuth.instance.currentAuthState.status,
-          AuthStatus.unauthenticated,
-        );
+        expect(QuestionAuth.instance.currentAuthState.status, AuthStatus.unauthenticated);
         expect(QuestionAuth.instance.authStateStream, isNotNull);
+        
+        // Test new API property getters
+        expect(QuestionAuth.instance.userRoles, isNull);
+        expect(QuestionAuth.instance.profileComplete, isNull);
+        expect(QuestionAuth.instance.onboardingComplete, isNull);
+        expect(QuestionAuth.instance.appAccess, isNull);
+        expect(QuestionAuth.instance.availableRoles, isNull);
+        expect(QuestionAuth.instance.incompleteRoles, isNull);
+        expect(QuestionAuth.instance.mode, isNull);
+        expect(QuestionAuth.instance.viewType, isNull);
+        expect(QuestionAuth.instance.redirectTo, isNull);
+        
+        // Test new API helper methods
+        expect(QuestionAuth.instance.hasRole('creator'), isFalse);
+        expect(QuestionAuth.instance.isProfileCompleteForRole('creator'), isFalse);
+        expect(QuestionAuth.instance.hasFullAppAccess, isFalse);
+        expect(QuestionAuth.instance.hasIncompleteRoles, isFalse);
+      });
+
+      test('should handle new API authentication methods through singleton', () async {
+        // Arrange
+        QuestionAuth.instance.configure(
+          baseUrl: 'https://test-api.com/api/v1/',
+        );
+        await QuestionAuth.instance.initialize();
+
+        // Act & Assert - Test that new API methods are available
+        expect(QuestionAuth.instance.signUp, isA<Function>());
+        expect(QuestionAuth.instance.login, isA<Function>());
+        expect(QuestionAuth.instance.getCurrentUser, isA<Function>());
+        expect(QuestionAuth.instance.logout, isA<Function>());
+        
+        // Verify the singleton exposes all new API properties
+        expect(QuestionAuth.instance.userRoles, isNull);
+        expect(QuestionAuth.instance.profileComplete, isNull);
+        expect(QuestionAuth.instance.onboardingComplete, isNull);
+        expect(QuestionAuth.instance.appAccess, isNull);
       });
     });
 

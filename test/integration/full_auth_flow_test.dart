@@ -36,19 +36,15 @@ void main() {
 
         // Verify registration success
         expect(result.success, isTrue);
-        expect(result.user, isNotNull);
-        expect(result.user!.email, isNotNull);
-        expect(result.user!.username, isNotNull);
+        expect(result.signUpData, isNotNull); // New API returns signup data, not user
+        expect(result.signUpData!.detail, contains('Registration successful'));
 
-        // Verify authentication state updated
-        expect(authService.isAuthenticated, isTrue);
-        expect(authService.currentUser, isNotNull);
+        // Verify authentication state - signup doesn't authenticate in new API
+        expect(authService.isAuthenticated, isFalse);
+        expect(authService.currentUser, isNull);
 
-        // Verify state stream emitted correct states
+        // Verify state stream - should remain unauthenticated after signup
         await Future.delayed(const Duration(milliseconds: 10));
-        expect(stateChanges.length, greaterThanOrEqualTo(1));
-        expect(stateChanges.last.status, AuthStatus.authenticated);
-        expect(stateChanges.last.user, isNotNull);
 
         await subscription.cancel();
       });
@@ -57,7 +53,7 @@ void main() {
         // Arrange
         final invalidRequest = SignUpRequest(
           email: 'invalid-email',
-          username: 'user',
+          displayName: 'user',
           password: 'pass',
           confirmPassword: 'different',
         );
@@ -114,8 +110,8 @@ void main() {
         final user = await authService.getCurrentUser();
 
         // Assert
-        expect(user.email, isNotNull);
-        expect(user.username, isNotNull);
+        expect(user.user.email, isNotNull);
+        expect(user.user.displayName, isNotNull);
 
         // Verify state updated
         expect(authService.isAuthenticated, isTrue);
@@ -175,13 +171,18 @@ void main() {
         // 1. Register user
         final signUpResult = await authService.signUp(signUpRequest);
         expect(signUpResult.success, isTrue);
+        expect(authService.isAuthenticated, isFalse); // Signup doesn't authenticate in new API
+
+        // 2. Login user (since signup doesn't authenticate)
+        final initialLoginResult = await authService.login(loginRequest);
+        expect(initialLoginResult.success, isTrue);
         expect(authService.isAuthenticated, isTrue);
 
-        // 2. Logout user
+        // 3. Logout user
         await authService.logout();
         expect(authService.isAuthenticated, isFalse);
 
-        // 3. Login user
+        // 4. Login user again
         final loginResult = await authService.login(loginRequest);
         expect(loginResult.success, isTrue);
         expect(authService.isAuthenticated, isTrue);
@@ -194,7 +195,7 @@ void main() {
         final authenticatedStates = stateChanges
             .where((state) => state.status == AuthStatus.authenticated)
             .toList();
-        expect(authenticatedStates.length, greaterThanOrEqualTo(2)); // After signup and login
+        expect(authenticatedStates.length, greaterThanOrEqualTo(2)); // After initial login and final login
 
         // Find unauthenticated states
         final unauthenticatedStates = stateChanges

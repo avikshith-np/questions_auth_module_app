@@ -193,12 +193,77 @@ class MockTokenManager extends Mock implements TokenManager {
     return null;
   }
   
+  UserProfileData? _storedProfile;
+  
+  @override
+  Future<void> saveUserProfile(UserProfileData profileData) async {
+    _storedProfile = profileData;
+  }
+
+  @override
+  Future<UserProfileData?> getUserProfile() async {
+    return _storedProfile;
+  }
+
+  @override
+  Future<void> clearUserProfile() async {
+    _storedProfile = null;
+  }
+
+  @override
+  Future<bool> hasUserProfile() async {
+    return _storedProfile != null;
+  }
+
+  @override
+  Future<void> updateUserProfile({
+    User? user,
+    List<String>? userRoles,
+    Map<String, bool>? profileComplete,
+    bool? onboardingComplete,
+    String? appAccess,
+    List<String>? availableRoles,
+    List<String>? incompleteRoles,
+    String? mode,
+    String? viewType,
+    String? redirectTo,
+  }) async {
+    if (_storedProfile != null) {
+      _storedProfile = _storedProfile!.copyWith(
+        user: user,
+        userRoles: userRoles,
+        profileComplete: profileComplete,
+        onboardingComplete: onboardingComplete,
+        appAccess: appAccess,
+        availableRoles: availableRoles,
+        incompleteRoles: incompleteRoles,
+        mode: mode,
+        viewType: viewType,
+        redirectTo: redirectTo,
+      );
+    }
+  }
+
+  @override
+  Future<void> clearAll() async {
+    _storedToken = null;
+    _storedProfile = null;
+  }
+  
   /// Helper method to check stored token in tests
   String? get storedToken => _storedToken;
+  
+  /// Helper method to check stored profile in tests
+  UserProfileData? get storedProfile => _storedProfile;
   
   /// Helper method to simulate token in tests
   void simulateToken(String? token) {
     _storedToken = token;
+  }
+  
+  /// Helper method to simulate profile in tests
+  void simulateProfile(UserProfileData? profile) {
+    _storedProfile = profile;
   }
 }
 
